@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Exam Practice Platform{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block styles %}{% endblock %}
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+            flex: 1;
+        }
+
+        .header {
+            text-align: center;
+            padding: 40px 0 25px 0;
+            background-color: #007bff;
+            color: white;
+            animation: fadeInDown 1s ease;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        .sub-header {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 1.3rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .flash-messages {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .flash-messages div {
+            padding: 12px 20px;
+            font-size: 16px;
+            margin: 8px auto;
+            max-width: 600px;
+            border-radius: 8px;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .flash-info    { background-color: #17a2b8; color: white; }
+        .flash-warning { background-color: #ffc107; color: black; }
+        .flash-error   { background-color: #dc3545; color: white; }
+
+        /* Auto-hide flash messages */
+        .flash-messages div.fade-out {
+            opacity: 0;
+            visibility: hidden;
+            height: 0;
+            padding: 0;
+            margin: 0;
+            overflow: hidden;
+            transition: all 1s ease;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            animation: fadeIn 0.8s ease;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        .form-group input:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .switch-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .switch-link a {
+            color: #007bff;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .switch-link a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 20px 0;
+            margin-top: 30px;
+        }
+
+        .footer-text {
+            font-weight: bold;
+        }
+
+        .motivational-quote {
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .form-container {
+                padding: 20px;
+            }
+
+            .btn {
+                width: 100%;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="header">
+        <h1>Exam Practice Platform</h1>
+        {% block subheader %}
+        {% endblock %}
+    </header>
+
+    <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-messages" id="flash-container">
+            {% for category, message in messages %}
+                <div class="flash-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <!-- Main Content -->
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <footer>
+        <p class="footer-text">Developed by Medic Adrenaline</p>
+        <p class="motivational-quote">"Success doesn’t come from what you do occasionally, it comes from what you do consistently."</p>
+    </footer>
+
+    <script>
+        // Auto-hide flash messages after 5 seconds
+        setTimeout(() => {
+            const flash = document.querySelector('#flash-container');
+            if (flash) {
+                flash.classList.add('fade-out');
+            }
+        }, 5000);
+    </script>
+    <script>
+        setTimeout(() => {
+            const messages = document.querySelector('.flash-messages');
+            if (messages) messages.style.display = 'none';
+        }, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!-- admin_dashboard.html -->
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .scrolling-text {
+        width: 100%;
+        overflow: hidden;
+        white-space: nowrap;
+        box-sizing: border-box;
+        direction: rtl; /* Text flows right-to-left */
+        margin-bottom: 20px;
+    }
+
+    .scrolling-text span {
+        display: inline-block;
+        padding-right: 100%;
+        animation: scroll-right 15s linear infinite;
+        font-weight: bold;
+        color: #2c3e50;
+        font-size: 1.2em;
+    }
+
+    @keyframes scroll-right {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+</style>
+
+<div class="scrolling-text">
+    <span>WELCOME!!! 😊 MEDIC ADRENALINE TO YOUR ADMIN DASHBOARD</span>
+</div>
+<div class="container">
+    <h2>Admin Dashboard</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash-{{ category }} mt-3">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Registered Users Section -->
+    <div style="margin-bottom: 30px;">
+        <h3>Registered Users</h3>
+        <ul>
+            {% for user in users %}
+                <li>{{ user.username }} ({{ user.email }})</li>
+            {% else %}
+                <li>No users registered yet</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Unused PINs Section -->
+    <div style="margin-bottom: 30px;">
+        <h3>Unused PINs</h3>
+        <ul>
+            {% for pin in unused_pins %}
+                <li>
+                    {{ pin.exam_mode }} - {{ pin.user.email }} - {{ pin.pin_code }}
+                    <form method="POST" action="{{ url_for('mark_pin_as_used') }}" style="display:inline">
+                        <input type="hidden" name="pin_id" value="{{ pin.id }}">
+                        <button class="btn" type="submit">Mark as Used</button>
+                    </form>
+                </li>
+            {% else %}
+                <li>No unused PINs</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Send PIN Section -->
+    <div style="margin-bottom: 30px;">
+        <h3>Send PIN</h3>
+        <form method="POST" action="{{ url_for('admin_send_pin') }}">
+            <label>Username or Email:</label>
+            <input type="text" name="username_or_email" required><br><br>
+            <label>Select Exam Mode(s):</label><br>
+            <input type="checkbox" name="modes" value="jamb"> JAMB<br>
+            <input type="checkbox" name="modes" value="waec"> WAEC<br>
+            <input type="checkbox" name="modes" value="postutme"> POST-UTME<br>
+            <input type="checkbox" name="modes" value="alevel"> A-Level<br><br>
+            <button type="submit" class="btn">Generate & Send PIN</button>
+        </form>
+    </div>
+
+    <a href="{{ url_for('admin_logout') }}" class="btn" style="float:right">Logout</a>
+</div>
+{% endblock %}

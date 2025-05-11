@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Create an Account</h2>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required placeholder="Password must be at least 8 characters long">
+        </div>
+
+        <div class="form-group">
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required>
+        </div>
+
+        <button type="submit" class="btn">Register</button>
+    </form>
+
+    <p class="switch-link">
+        Already have an account? <a href="{{ url_for('login') }}">Login here</a>
+    </p>
+</div>
+
+<div class="footer">
+    <p class="footer-text">Developed by Medic Adrenaline</p>
+    <p class="motivational-quote">"Believe you can and you're halfway there." - Medic Adrenaline</p>
+</div>
+
+<script>
+    // JavaScript to check if passwords match before submitting the form
+    document.querySelector("form").addEventListener("submit", function(e) {
+        var password = document.getElementById("password").value;
+        var confirmPassword = document.getElementById("confirm_password").value;
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert("Passwords do not match!");
+        }
+    });
+</script>
+
+{% endblock %}
+
+{% block styles %}
+<style>
+    .footer {
+        background-color: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        margin-top: 30px;
+        border-top: 2px solid #ddd;
+    }
+
+    .footer-text {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .motivational-quote {
+        font-size: 16px;
+        font-style: italic;
+        color: #555;
+    }
+
+    .footer-text, .motivational-quote {
+        margin: 5px 0;
+    }
+</style>
+{% endblock %}

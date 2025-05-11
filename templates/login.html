@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Login</h2>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="username_or_email">Username or Email</label>
+            <input type="text" id="username_or_email" name="username_or_email" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+
+        <button type="submit" class="btn">Login</button>
+    </form>
+
+    <p class="switch-link">
+        Don't have an account? <a href="{{ url_for('register') }}">Register here</a>
+    </p>
+
+    <p class="forgot-password-link">
+        <a href="{{ url_for('forgot_password') }}">Forgot your password?</a>
+    </p>
+
+    {% if session.get('registration_success') %}
+        <div class="flash-info mt-3">
+            <p>Registration successful! Please log in with your credentials after OTP verification.</p>
+        </div>
+    {% endif %}
+
+    {% if session.get('pending_user_id') %}
+        <p>Your account is not verified yet. Please check your email for the OTP and verify your account.</p>
+    {% endif %}
+</div>
+
+<div class="footer">
+    <p class="footer-text">Developed by Medic Adrenaline</p>
+    <p class="motivational-quote">"The journey of a thousand miles begins with a single step." - Medic Adrenaline</p>
+</div>
+
+<script>
+    // JavaScript to check if passwords match before submitting the form
+    document.querySelector("form").addEventListener("submit", function(e) {
+        var usernameOrEmail = document.getElementById("username_or_email").value;
+        var password = document.getElementById("password").value;
+        if (!usernameOrEmail || !password) {
+            e.preventDefault();
+            alert("Please fill out both fields.");
+        }
+    });
+</script>
+
+{% endblock %}
+
+{% block styles %}
+<style>
+    .footer {
+        background-color: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        margin-top: 30px;
+        border-top: 2px solid #ddd;
+    }
+
+    .footer-text {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .motivational-quote {
+        font-size: 16px;
+        font-style: italic;
+        color: #555;
+    }
+
+    .footer-text, .motivational-quote {
+        margin: 5px 0;
+    }
+
+    .forgot-password-link {
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .forgot-password-link a {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    .forgot-password-link a:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}

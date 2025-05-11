@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Adrenaline's Exam Practice Platform</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="welcome-header">
+        <div class="header-container">
+            <!-- Your Beautiful Photo -->
+            <img src="{{ url_for('static', filename='images/medic_adrenaline.jpg') }}" alt="Medic Adrenaline" class="profile-img">
+            
+            <h1>Welcome to Adrenaline's Exam Practice Platform</h1>
+            <p class="inspiring-quote">"Success doesn’t come from what you do occasionally, it comes from what you do consistently."</p>
+        </div>
+    </header>
+
+    <!-- Register / Login Buttons -->
+    <div class="auth-buttons">
+        <a href="{{ url_for('register') }}" class="btn">Register</a>
+        <a href="{{ url_for('login') }}" class="btn">Login</a>
+    </div>
+
+    <!-- Footer Section -->
+    <footer>
+        <p>Developed by Medic Adrenaline</p>
+    </footer>
+</body>
+</html>

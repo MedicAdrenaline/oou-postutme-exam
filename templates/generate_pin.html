@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Generate PIN{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash-info mt-3">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <div class="alert alert-info">
+        If you selected WhatsApp options, please contact me via
+        <strong><a href="https://wa.me/2348135047400" target="_blank" class="btn btn-success mt-3">Contact on WhatsApp</a></strong>
+        to confirm payment and activate your PIN.
+    </div>
+
+    <div class="alert alert-info">
+        Note: Pay the exact amount you selected
+    </div>
+
+    <h2 class="text-center">Generate Access PIN</h2>
+    <form method="POST" action="{{ url_for('generate_pin') }}">
+        <div class="form-group">
+            <label>Select Exam Mode(s):</label><br>
+            <div><input type="checkbox" name="modes" value="jamb"> JAMB (₦2000)</div>
+            <div><input type="checkbox" name="modes" value="waec"> WAEC (₦2000)</div>
+            <div><input type="checkbox" name="modes" value="postutme"> POST-UTME (₦2000)</div>
+            <div><input type="checkbox" name="modes" value="alevel"> A-Level (₦3000)</div>
+        </div>
+
+        <div class="form-group mt-3">
+            <label>Choose Payment Option:</label>
+            <select class="form-control" name="payment_method" id="payment_method" required>
+                <option value="" disabled selected>Select payment method</option>
+                <option value="paystack">Pay with Paystack</option>
+                <option value="whatsapp_proof">Pay directly into bank account and send proof via WhatsApp</option>
+                <option value="whatsapp_chat">Text me on WhatsApp for more payment options</option>
+            </select>
+        </div>
+
+        <!-- Bank Transfer Details -->
+        <div id="bank-details" class="mt-4 alert alert-warning" style="display: none;">
+            <h5 class="mb-2">Transfer to this Account:</h5>
+            <p><strong>Bank:</strong> Opay</p>
+            <p><strong>Account Name:</strong> Bakre Feranmi David</p>
+            <p><strong>Account Number:</strong> 8135047400</p>
+            <hr>
+            <p><strong>After payment, send your proof with your username or email to the WhatsApp above for PIN activation.</strong></p>
+        </div>
+
+        <!-- Proceed button always visible -->
+        <button type="submit" class="btn btn-primary mt-4 w-100">Proceed</button>
+    </form>
+</div>
+
+<script>
+document.getElementById('payment_method').addEventListener('change', function () {
+    var bankDetails = document.getElementById('bank-details');
+    if (this.value === 'whatsapp_proof') {
+        bankDetails.style.display = 'block';
+    } else {
+        bankDetails.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}
