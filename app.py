@@ -728,9 +728,6 @@ def exam_access():
     # Redirect to the exam page
     return redirect(url_for('start_exam'))
 
-import os
-import threading
-
-if __name__ == '_main_':
+if __name__ == '__main__':
     threading.Thread(target=clean_unverified_users, daemon=True).start()
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
