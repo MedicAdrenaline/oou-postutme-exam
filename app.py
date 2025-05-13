@@ -37,6 +37,7 @@ def get_user_by_email_or_username(identifier):
 from config import Config
 
 app = Flask(__name__)
+
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 
@@ -50,7 +51,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db) 
 
-
+# Models
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -727,6 +728,9 @@ def exam_access():
     # Redirect to the exam page
     return redirect(url_for('start_exam'))
 
-if __name__ == '__main__':
+import os
+import threading
+
+if __name__ == '_main_':
     threading.Thread(target=clean_unverified_users, daemon=True).start()
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
