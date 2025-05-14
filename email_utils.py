@@ -96,7 +96,7 @@ def send_email(to_email, subject, content):
 
 def send_otp_email(to_email, otp):
     content = f"Hi,\n\nYour OTP is: {otp}\n\nBest regards,\nMedic Adrenaline"
-    send_email("Verify your Exam Practice Account", content, to_email)
+    send_email(to_email, "Verify your Exam Practice Account", content)
 
 def send_exam_pins_email(to_email, pins_dict):
     content = "Hi,\n\nHere are your PINs:\n\n"
