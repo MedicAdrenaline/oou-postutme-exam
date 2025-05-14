@@ -77,6 +77,7 @@ class Pin(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     pin_code = db.Column(db.String(100), nullable=False)
     is_used = db.Column(db.Boolean, default=False)
+    device_id = db.Column(db.String(255), nullable=False)
     exam_mode = db.Column(db.String(50), nullable=False)  # e.g., JAMB, WAEC, POST-UTME, A-LEVEL, MAIN
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=False)  # Add this line to your model
