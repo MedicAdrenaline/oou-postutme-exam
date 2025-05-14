@@ -108,7 +108,7 @@ class Admin(db.Model):
     __tablename__ = 'admin'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)   
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -694,6 +694,11 @@ def admin_logout():
 def exam_access():
     pin_code = request.form.get('pin_code')  # Get the pin_code from the form
     device_id = request.form.get('device_id')  # Get the device_id from the form (sent by JavaScript)
+    print("Form Device ID:", device_id)  # This will show if device_id is being passed from the form
+
+    if not device_id:
+        flash("Device ID is missing. Please reload the page and try again.", "error")
+        return redirect(url_for('dashboard'))
 
     # Print device_id from the form
     print("Form Device ID:", device_id)  # This will show the device_id sent from the form via JavaScript
