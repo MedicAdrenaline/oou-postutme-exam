@@ -1,12 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-import requests, secrets, os, uuid, string, random,time, threading
+import requests, secrets, os, uuid, string, random, time, threading
 from email_utils import send_otp_email, send_exam_pins_email, send_reset_password_email
 from functools import wraps
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from datetime import datetime, timedelta, timezone
 from flask_migrate import Migrate
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit 
+from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.ext.mutable import MutableDict
 
 def admin_login_required(f):
     @wraps(f)
@@ -52,6 +56,8 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db) 
 
 # Models
+from sqlalchemy.dialects.mysql import JSON
+
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -63,13 +69,21 @@ class User(UserMixin, db.Model):
     pin_attempts = db.Column(db.Integer, default=0)
     last_attempt_time = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    blocked_modes = db.Column(db.JSON, default={}) 
+    blocked_modes = db.Column(JSON, default=lambda: {"jamb": False, "waec": False, "postutme": False, "alevel": False})
     reset_token = db.Column(db.String(128), nullable=True)
     reset_token_expiration = db.Column(db.DateTime, nullable=True)
     
     def set_password(self, password):
         self.password = generate_password_hash(password) 
 # Example: {"JAMB": "2025-05-10 15:30:00", "WAEC": "2025-05-10 16:00:00"}
+
+def default_mode_attempts():
+    return {
+        "jamb": 0,
+        "waec": 0,
+        "postutme": 0,
+        "alevel": 0
+    }
 
 class Pin(db.Model):
     __tablename__ = 'pins'
@@ -78,10 +92,11 @@ class Pin(db.Model):
     pin_code = db.Column(db.String(100), nullable=False)
     is_used = db.Column(db.Boolean, default=False)
     device_id = db.Column(db.String(255), nullable=True)
-    exam_mode = db.Column(db.String(50), nullable=False)  # e.g., JAMB, WAEC, POST-UTME, A-LEVEL, MAIN
+    exam_mode = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=False)  # Add this line to your model
-    user = db.relationship('User', backref=db.backref('pins', lazy=True))  # Assuming the 'User' model exists
+    is_active = db.Column(db.Boolean, default=False)
+    mode_attempts = db.Column(JSON, default=default_mode_attempts)
+    user = db.relationship('User', backref=db.backref('pins', lazy=True))
 
 class Question(db.Model):
     __tablename__ = 'questions'
@@ -134,88 +149,6 @@ def verify_paystack_transaction(reference):
     }
     response = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
     return response.json()
-
-def clean_unverified_users():
-    while True:
-        time.sleep(3600)
-        with app.app_context():
-            expiration = datetime.utcnow() - timedelta(hours=24)
-            users_to_delete = User.query.filter(
-                User.is_verified == False,
-                User.created_at < expiration
-            ).all()
-            for u in users_to_delete:
-                db.session.delete(u)
-            db.session.commit()
-            if users_to_delete:
-                print(f"Cleaned {len(users_to_delete)} unverified users.")
-
-# Function to handle PIN verification
-def verify_pin(exam_mode):
-    # Get the entered PIN from the form
-    pin = request.form['pin']
-    user_id = session.get('user_id')
-
-    # Check if the user is logged in
-    if not user_id:
-        flash("You need to log in to access the exam page.")
-        return redirect(url_for('login'))
-
-    # Fetch the user and check if they are blocked
-    user = User.query.get(user_id)
-    if not user:
-        flash("User not found.")
-        return redirect(url_for('login'))
-
-    # Check if the user is blocked from entering PINs in this mode
-    current_time = datetime.utcnow()
-    blocked_until = user.blocked_modes.get(exam_mode)
-
-    if blocked_until and current_time < datetime.fromisoformat(blocked_until):
-        remaining_time = (datetime.fromisoformat(blocked_until) - current_time).total_seconds() // 60
-        flash(f"You are blocked from entering PINs in {exam_mode}. Try again after {int(remaining_time)} minutes.")
-        return redirect(url_for('exam_homepage'))
-
-    # Retrieve the pin record
-    pin_record = Pin.query.filter_by(user_id=user_id, exam_mode=exam_mode, pin_code=pin, is_used=False).first()
-
-    # If valid PIN is found
-    if pin_record:
-        # Check device ID
-        device_id = request.user_agent.string
-        if pin_record.device_id and pin_record.device_id != device_id:
-            flash("This PIN is tied to another device.")
-            return redirect(url_for('exam_homepage'))
-
-        # Update pin as used and reset attempt counter
-        pin_record.is_used = True
-        user.pin_attempts = 0  # Reset attempts after successful login
-        pin_record.device_id = device_id  # Associate the device ID
-        db.session.commit()
-
-        # Redirect to the exam start page based on the mode
-        redirect_mapping = {
-            "JAMB": 'jamb_page',
-            "WAEC": 'waec_page',
-            "POST-UTME": 'postutme_page',
-            "A-LEVEL": 'alevel_page'
-        }
-        return redirect(url_for(redirect_mapping.get(exam_mode)))
-
-    # If invalid PIN
-    user.pin_attempts += 1
-    db.session.commit()
-
-    # Block the user for 24 hours after 5 attempts
-    if user.pin_attempts >= 5:
-        block_time = current_time + timedelta(hours=24)
-        user.blocked_modes[exam_mode] = block_time.isoformat()
-        db.session.commit()
-        flash("You have been blocked from entering PINs in all exam modes for 24 hours.")
-        return redirect(url_for('exam_homepage'))
-
-    flash("Incorrect PIN. Please try again.")
-    return redirect(url_for(f'verify_{exam_mode.lower()}_pin'))
 
 # Routes
 @app.route('/')
@@ -408,7 +341,10 @@ def exam_homepage():
     # Render the exam homepage, passing the username for display
     return render_template('exam_homepage.html', username=user.username)
 
+# ===========================
 # Exam Mode Routes
+# ===========================
+
 @app.route('/exam/jamb', methods=['GET', 'POST'])
 def jamb_exam():
     return render_template('jamb.html')
@@ -427,81 +363,57 @@ def alevel_exam():
 
 @app.route('/admission-updates')
 def admission_updates():
-    # Admission Updates Page
     return render_template('admission_updates.html')
 
 
-
 # ===========================
-# PIN Verification Functions
+# PIN Verification Function
 # ===========================
 
-def verify_jamb_pin():
-    pin = request.form.get('pin')
-    device_id = request.form.get('device_id')
+def verify_pin(pin, device_id, exam_mode, user):
+    # Check if the exam mode is blocked
+    if user.blocked_modes.get(exam_mode):
+        flash(f"You are blocked from accessing {exam_mode.upper()} due to multiple incorrect attempts.", "error")
+        return False
 
-    if not pin or not device_id:
-        flash("PIN or device information missing.")
-        return redirect(url_for('jamb_exam'))
+    # Fetch the PIN entry
+    pin_entry = Pin.query.filter_by(pin_code=pin, exam_mode=exam_mode).first()
 
-    # Example logic for JAMB
-    if pin == "JAMB12345":  # Replace with actual logic
-        flash(f"JAMB PIN verified. Device ID: {device_id}")
-        return redirect(url_for('exam_homepage'))
+    # If PIN is not found
+    if not pin_entry:
+        # Increment attempt count
+        user.pin_attempts += 1
+        user.last_attempt_time = datetime.utcnow()
+
+        # Block the mode if 5 incorrect attempts
+        if user.pin_attempts >= 5:
+            user.blocked_modes[exam_mode] = datetime.utcnow() + timedelta(hours=24)
+            flash(f"You are now blocked from {exam_mode.upper()} for 24 hours due to multiple incorrect attempts.", "error")
+        else:
+            remaining_attempts = 5 - user.pin_attempts
+            flash(f"Invalid PIN. Attempts left: {remaining_attempts}", "error")
+
+        db.session.commit()
+        return False
+
+    # Reset attempts on successful entry
+    user.pin_attempts = 0
+
+    # First-time use: Attach device_id
+    if not pin_entry.device_id:
+        pin_entry.device_id = device_id
+        pin_entry.is_used = True
+        db.session.commit()
+        flash("PIN verified and device locked to your device.", "success")
+        return True
+
+    # Subsequent use: Verify device_id
+    if pin_entry.device_id == device_id:
+        flash("PIN verified.", "success")
+        return True
     else:
-        flash("Invalid JAMB PIN or too many attempts.")
-        return redirect(url_for('jamb_exam'))
-
-
-def verify_waec_pin():
-    pin = request.form.get('pin')
-    device_id = request.form.get('device_id')
-
-    if not pin or not device_id:
-        flash("PIN or device information missing.")
-        return redirect(url_for('waec_exam'))
-
-    # Example logic for WAEC
-    if pin == "WAEC12345":  # Replace with actual logic
-        flash(f"WAEC PIN verified. Device ID: {device_id}")
-        return redirect(url_for('exam_homepage'))
-    else:
-        flash("Invalid WAEC PIN or too many attempts.")
-        return redirect(url_for('waec_exam'))
-
-
-def verify_postutme_pin():
-    pin = request.form.get('pin')
-    device_id = request.form.get('device_id')
-
-    if not pin or not device_id:
-        flash("PIN or device information missing.")
-        return redirect(url_for('postutme_exam'))
-
-    # Example logic for POST-UTME
-    if pin == "POSTUTME12345":  # Replace with actual logic
-        flash(f"POST-UTME PIN verified. Device ID: {device_id}")
-        return redirect(url_for('exam_homepage'))
-    else:
-        flash("Invalid POST-UTME PIN or too many attempts.")
-        return redirect(url_for('postutme_exam'))
-
-
-def verify_alevel_pin():
-    pin = request.form.get('pin')
-    device_id = request.form.get('device_id')
-
-    if not pin or not device_id:
-        flash("PIN or device information missing.")
-        return redirect(url_for('alevel_exam'))
-
-    # Example logic for A-LEVEL
-    if pin == "ALEVEL12345":  # Replace with actual logic
-        flash(f"A-LEVEL PIN verified. Device ID: {device_id}")
-        return redirect(url_for('exam_homepage'))
-    else:
-        flash("Invalid A-LEVEL PIN or too many attempts.")
-        return redirect(url_for('alevel_exam'))
+        flash("PIN already used on another device.", "error")
+        return False
 
 
 # =====================
@@ -510,19 +422,67 @@ def verify_alevel_pin():
 
 @app.route('/verify_jamb_pin', methods=['POST'])
 def verify_jamb_pin_route():
-    return verify_jamb_pin()
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+    user = User.query.get(session.get('user_id'))
+    if user and verify_pin(pin, device_id, 'jamb', user):
+        return redirect(url_for('jamb_exam'))
+    return redirect(url_for('jamb_exam'))
+
 
 @app.route('/verify_waec_pin', methods=['POST'])
 def verify_waec_pin_route():
-    return verify_waec_pin()
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+    user = User.query.get(session.get('user_id'))
+    if user and verify_pin(pin, device_id, 'waec', user):
+        return redirect(url_for('waec_exam'))
+    return redirect(url_for('waec_exam'))
+
 
 @app.route('/verify_postutme_pin', methods=['POST'])
 def verify_postutme_pin_route():
-    return verify_postutme_pin()
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+    user = User.query.get(session.get('user_id'))
+    if user and verify_pin(pin, device_id, 'postutme', user):
+        return redirect(url_for('postutme_exam'))
+    return redirect(url_for('postutme_exam'))
+
 
 @app.route('/verify_alevel_pin', methods=['POST'])
 def verify_alevel_pin_route():
-    return verify_alevel_pin()
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+    user = User.query.get(session.get('user_id'))
+    if user and verify_pin(pin, device_id, 'alevel', user):
+        return redirect(url_for('alevel_exam'))
+    return redirect(url_for('alevel_exam'))
+
+
+# ===========================
+# Function to Clean Unverified Users
+# ===========================
+def clean_unverified_users():
+    with app.app_context():
+        expiration = datetime.utcnow() - timedelta(hours=24)
+        users_to_delete = User.query.filter(
+            User.is_verified == False,
+            User.created_at < expiration
+        ).all()
+        for u in users_to_delete:
+            db.session.delete(u)
+        db.session.commit()
+        if users_to_delete:
+            print(f"Cleaned {len(users_to_delete)} unverified users.")
+
+# Initialize and start the scheduler
+scheduler = BackgroundScheduler()
+scheduler.add_job(clean_unverified_users, 'interval', hours=1)
+scheduler.start()
+
+# Shut down the scheduler when exiting the app
+atexit.register(lambda: scheduler.shutdown())
     
 @app.route('/generate-pin', methods=['GET', 'POST'])
 def generate_pin():
@@ -592,14 +552,14 @@ def payment_callback():
     reference = request.args.get('reference')
     if not reference:
         flash("Missing payment reference.")
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('exam_homepage'))
 
     user_id = session.get('user_id')
     selected_modes = session.get('selected_modes')
 
     if not user_id or not selected_modes:
         flash("Session expired or invalid.")
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('exam_homepage'))
 
     verification = verify_paystack_transaction(reference)
     if verification.get("data", {}).get("status") == "success":
@@ -621,7 +581,7 @@ def payment_callback():
     else:
         flash("Payment verification failed.")
 
-    return redirect(url_for('dashboard'))
+    return redirect(url_for('exam_homepage'))
 
 @app.route('/logout')
 def logout():
