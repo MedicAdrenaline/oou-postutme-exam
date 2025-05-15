@@ -77,7 +77,7 @@ class Pin(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     pin_code = db.Column(db.String(100), nullable=False)
     is_used = db.Column(db.Boolean, default=False)
-    device_id = db.Column(db.String(255), nullable=False)
+    device_id = db.Column(db.String(255), nullable=True)
     exam_mode = db.Column(db.String(50), nullable=False)  # e.g., JAMB, WAEC, POST-UTME, A-LEVEL, MAIN
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=False)  # Add this line to your model
@@ -408,51 +408,121 @@ def exam_homepage():
     # Render the exam homepage, passing the username for display
     return render_template('exam_homepage.html', username=user.username)
 
-
+# Exam Mode Routes
 @app.route('/exam/jamb', methods=['GET', 'POST'])
 def jamb_exam():
-    # JAMB Exam Page - Enter PIN and Start Exam
     return render_template('jamb.html')
-
 
 @app.route('/exam/waec', methods=['GET', 'POST'])
 def waec_exam():
-    # WAEC Exam Page - Enter PIN and Start Exam
     return render_template('waec.html')
-
 
 @app.route('/exam/postutme', methods=['GET', 'POST'])
 def postutme_exam():
-    # POST-UTME Exam Page - Enter PIN and Start Exam
     return render_template('postutme.html')
-
 
 @app.route('/exam/alevel', methods=['GET', 'POST'])
 def alevel_exam():
-    # A-LEVEL Exam Page - Enter PIN and Start Exam
     return render_template('alevel.html')
-
 
 @app.route('/admission-updates')
 def admission_updates():
     # Admission Updates Page
     return render_template('admission_updates.html')
 
-@app.route('/verify_jamb_pin', methods=['POST'])
+
+
+# ===========================
+# PIN Verification Functions
+# ===========================
+
 def verify_jamb_pin():
-    return verify_pin('JAMB')
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+
+    if not pin or not device_id:
+        flash("PIN or device information missing.")
+        return redirect(url_for('jamb_exam'))
+
+    # Example logic for JAMB
+    if pin == "JAMB12345":  # Replace with actual logic
+        flash(f"JAMB PIN verified. Device ID: {device_id}")
+        return redirect(url_for('exam_homepage'))
+    else:
+        flash("Invalid JAMB PIN or too many attempts.")
+        return redirect(url_for('jamb_exam'))
+
+
+def verify_waec_pin():
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+
+    if not pin or not device_id:
+        flash("PIN or device information missing.")
+        return redirect(url_for('waec_exam'))
+
+    # Example logic for WAEC
+    if pin == "WAEC12345":  # Replace with actual logic
+        flash(f"WAEC PIN verified. Device ID: {device_id}")
+        return redirect(url_for('exam_homepage'))
+    else:
+        flash("Invalid WAEC PIN or too many attempts.")
+        return redirect(url_for('waec_exam'))
+
+
+def verify_postutme_pin():
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+
+    if not pin or not device_id:
+        flash("PIN or device information missing.")
+        return redirect(url_for('postutme_exam'))
+
+    # Example logic for POST-UTME
+    if pin == "POSTUTME12345":  # Replace with actual logic
+        flash(f"POST-UTME PIN verified. Device ID: {device_id}")
+        return redirect(url_for('exam_homepage'))
+    else:
+        flash("Invalid POST-UTME PIN or too many attempts.")
+        return redirect(url_for('postutme_exam'))
+
+
+def verify_alevel_pin():
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+
+    if not pin or not device_id:
+        flash("PIN or device information missing.")
+        return redirect(url_for('alevel_exam'))
+
+    # Example logic for A-LEVEL
+    if pin == "ALEVEL12345":  # Replace with actual logic
+        flash(f"A-LEVEL PIN verified. Device ID: {device_id}")
+        return redirect(url_for('exam_homepage'))
+    else:
+        flash("Invalid A-LEVEL PIN or too many attempts.")
+        return redirect(url_for('alevel_exam'))
+
+
+# =====================
+# PIN Verification Routes
+# =====================
+
+@app.route('/verify_jamb_pin', methods=['POST'])
+def verify_jamb_pin_route():
+    return verify_jamb_pin()
 
 @app.route('/verify_waec_pin', methods=['POST'])
-def verify_waec_pin():
-    return verify_pin('WAEC')
+def verify_waec_pin_route():
+    return verify_waec_pin()
 
 @app.route('/verify_postutme_pin', methods=['POST'])
-def verify_postutme_pin():
-    return verify_pin('POST-UTME')
+def verify_postutme_pin_route():
+    return verify_postutme_pin()
 
 @app.route('/verify_alevel_pin', methods=['POST'])
-def verify_alevel_pin():
-    return verify_pin('A-LEVEL')
+def verify_alevel_pin_route():
+    return verify_alevel_pin()
     
 @app.route('/generate-pin', methods=['GET', 'POST'])
 def generate_pin():
@@ -466,16 +536,15 @@ def generate_pin():
         selected_modes = request.form.getlist('modes')
         payment_method = request.form['payment_method']
         email = user.email
-
+        
         if not selected_modes:
             flash('Please select at least one exam mode.', 'error')
             return redirect(url_for('generate_pin'))
-
         amount = calculate_amount(selected_modes)
-
         session['selected_modes'] = selected_modes
         session['payment_method'] = payment_method
         session['expected_amount'] = amount
+       
 
         if payment_method == 'paystack':
             reference = str(uuid.uuid4())
@@ -645,6 +714,21 @@ def mark_pin_as_used():
         db.session.commit()
     return redirect(url_for('admin_dashboard'))
 
+def generate_pin_for_exam(exam_mode, user_id, device_id):
+    pin_code = generate_unique_pin()
+    new_pin = Pin(
+        user_id=user_id,
+        pin_code=pin_code,
+        is_used=False,
+        device_id=device_id,   # Now required
+        exam_mode=exam_mode,
+        created_at=datetime.utcnow(),
+        is_active=False
+    )
+    db.session.add(new_pin)
+    db.session.commit()
+    return pin_code
+
 @app.route('/admin/send_pin', methods=['GET', 'POST'])
 @admin_login_required
 def admin_send_pin():
@@ -652,12 +736,10 @@ def admin_send_pin():
         username_or_email = request.form.get('username_or_email')
         selected_modes = request.form.getlist('modes')
 
-        # Validate inputs
         if not username_or_email or not selected_modes:
-            flash("Please provide a username/email and select at least one exam mode.", "error")
+            flash("Please provide username/email and select at least one exam mode.", "error")
             return redirect(url_for('admin_send_pin'))
 
-        # Look up user
         user = User.query.filter(
             (User.email == username_or_email) | (User.username == username_or_email)
         ).first()
@@ -666,12 +748,11 @@ def admin_send_pin():
             flash("User not found. Please check the username or email.", "error")
             return redirect(url_for('admin_send_pin'))
 
-        # Generate pins for each selected mode
         pins_dict = {}
         for mode in selected_modes:
-            pins_dict[mode] = generate_pin_for_exam(mode, user.id)
+            # Pass device_id as None since it is not yet known
+            pins_dict[mode] = generate_pin_for_exam(mode, user.id, None)
 
-        # Send email
         try:
             send_exam_pins_email(user.email, pins_dict)
             flash("PINs generated and sent successfully!", "success")
@@ -680,59 +761,13 @@ def admin_send_pin():
 
         return redirect(url_for('admin_dashboard'))
 
-    # GET request: Show form
-    return render_template('send_pin.html')  # A separate form page for admin to send pins)
+    return render_template('admin_send_pin.html')
     
 @app.route('/admin-logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
     flash("Logged out successfully.")
     return redirect(url_for('admin_login'))
-
-@app.route('/exam_access', methods=['POST'])
-@login_required
-def exam_access():
-    pin_code = request.form.get('pin_code')  # Get the pin_code from the form
-    device_id = request.form.get('device_id')  # Get the device_id from the form (sent by JavaScript)
-    print("Form Device ID:", device_id)  # This will show if device_id is being passed from the form
-
-    if not device_id:
-        flash("Device ID is missing. Please reload the page and try again.", "error")
-        return redirect(url_for('dashboard'))
-
-    # Print device_id from the form
-    print("Form Device ID:", device_id)  # This will show the device_id sent from the form via JavaScript
-
-    # Fetch the pin object from the database based on the pin_code
-    pin = Pin.query.filter_by(pin_code=pin_code).first()
-
-    if not pin:
-        flash("Invalid PIN.", "error")
-        return redirect(url_for('dashboard'))
-
-    # Print device_id from the database
-    print("Database Device ID:", pin.device_id)  # This will show the device_id from the database for this pin
-    print(request.form)
-    
-    if not pin.is_active:
-        flash("PIN not yet activated. Contact support.", "error")
-        return redirect(url_for('dashboard'))
-
-    if pin.is_used and pin.device_id != device_id:
-        flash("This PIN is already in use on another device.", "error")
-        return redirect(url_for('dashboard'))
-
-    # First-time use: Save the device_id and mark the PIN as used
-    if not pin.is_used:
-        pin.device_id = device_id  # Save the device_id to the pin in the database
-        pin.is_used = True  # Mark the PIN as used
-        db.session.commit()  # Commit the changes to the database
-
-    # Store the PIN in the session
-    session['exam_pin'] = pin_code  # Store the pin code in the session for later use
-
-    # Redirect to the exam page
-    return redirect(url_for('start_exam'))
 
 if __name__ == '__main__':
     threading.Thread(target=clean_unverified_users, daemon=True).start()
