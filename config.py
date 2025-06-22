@@ -12,7 +12,9 @@ class Config:
     DB_PASSWORD = os.getenv('DB_PASSWORD')
     DB_NAME = os.getenv('DB_NAME')
     DB_PORT = os.getenv('DB_PORT')
-
+    SQLALCHEMY_DATABASE_URI = (f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    SQLALCHEMY_ENGINE_OPTIONS = {"connect_args": {"ssl": {"fake_flag_to_enable_ssl": True} }} # Replace with actual TiDB SSL if needed
+                     
     # Paystack and WhatsApp
     PAYSTACK_PUBLIC_KEY = os.getenv('PAYSTACK_PUBLIC_KEY')
     PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY')

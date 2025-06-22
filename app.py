@@ -1,5 +1,4 @@
-# ======= #
-# IMPORTS #
+# IMPORTS 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, json
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,6 +11,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 from werkzeug.utils import secure_filename
 from config import Config
+from dotenv import load_dotenv
+load_dotenv()
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.sql.expression import func
@@ -20,16 +21,18 @@ from sqlalchemy.exc import IntegrityError
 import app 
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
-expiration = datetime.now(timezone.utc) - timedelta(hours=24)
 from app import app
 import openai, requests, wolframalpha
 from transformers import pipeline  
 from openai import OpenAI
+from sqlalchemy import text
 
 
 app = Flask(__name__)
+
+# Database configuration
 app.config.from_object(Config)
-app.secret_key = Config.SECRET_KEY
+db = SQLAlchemy(app)
 
 # Login Manager
 login_manager = LoginManager()
@@ -37,18 +40,13 @@ login_manager.init_app(app)
 login_manager.login_view = "admin_login"
 @login_manager.user_loader
 def load_user(user_id):
+    print("user id:", user_id)
     return User.query.get(int(user_id))
-
-
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{Config.DB_USER}:{Config.DB_PASSWORD}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-
 
 # ====== #
 # MODELS #
 # ====== #
+# Default helpers
 def default_mode_attempts():
     return {
         "jamb": 0,
@@ -63,6 +61,7 @@ def default_blocked_modes():
         "postutme": False,
         "alevel": False
     }
+    #Users
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -76,8 +75,9 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(128), nullable=True)
     reset_token_expiration = db.Column(db.DateTime, nullable=True)
     last_attempt_time = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+
+# Pin model
 class Pin(db.Model):
     __tablename__ = 'pins'
     id = db.Column(db.Integer, primary_key=True)
@@ -86,10 +86,10 @@ class Pin(db.Model):
     is_used = db.Column(db.Boolean, default=False)
     device_id = db.Column(db.String(255), nullable=True)
     exam_mode = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     is_active = db.Column(db.Boolean, default=False)
-    user = db.relationship('User', backref=db.backref('pins', lazy=True))
 
+# UserExamSession model
 class UserExamSession(db.Model):
     __tablename__ = 'user_exam_session'
     id = db.Column(db.Integer, primary_key=True)
@@ -97,62 +97,66 @@ class UserExamSession(db.Model):
     subject = db.Column(db.String(200), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     question_ids = db.Column(db.Text, nullable=False)  # comma-separated question IDs
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user = db.relationship('User', backref='exam_sessions')
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
+# Question model
 class Question(db.Model):
     __tablename__ = 'questions'
     id = db.Column(db.Integer, primary_key=True)
     exam_mode = db.Column(db.String(100), nullable=False)
     subject = db.Column(db.String(200), nullable=False)
-    question_text = db.Column(db.Text, nullable=True)  # nullable=True if question can be image-based only
-    question_image = db.Column(db.String(255), nullable=True)  # image URL or path
+    question_text = db.Column(db.Text, nullable=True)
+    question_image = db.Column(db.String(255), nullable=True)
     option_a = db.Column(db.String(255), nullable=False)
     option_b = db.Column(db.String(255), nullable=False)
     option_c = db.Column(db.String(255), nullable=False)
     option_d = db.Column(db.String(255), nullable=False)
     correct_option = db.Column(db.String(1), nullable=False)
-    explanation = db.Column(db.Text, nullable=True)  # explanation text
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    explanation = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    attempts = db.relationship('QuestionAttempt', backref='question', lazy=True)
 
+# ExamAttempt model
 class ExamAttempt(db.Model):
     __tablename__ = 'exam_attempts'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    exam_mode = db.Column(db.String(100), nullable=False)  # 'jamb'
-    subjects = db.Column(db.String(255), nullable=False)  # store as JSON string or CSV of selected subjects
-    questions_json = db.Column(db.Text, nullable=False)  # JSON list of question IDs for this attempt
-    answers_json = db.Column(db.Text, nullable=True)  # JSON dict of {question_id: selected_answer}
-    time_remaining = db.Column(db.Integer, default=7200)  # seconds left
-    status = db.Column(db.String(20), default='ongoing')  # 'ongoing' or 'submitted'
+    exam_mode = db.Column(db.String(100), nullable=False)
+    subjects = db.Column(db.String(255), nullable=False)  # JSON string or CSV
+    questions_json = db.Column(db.Text, nullable=False)   # JSON list as string
+    answers_json = db.Column(db.Text, nullable=True)      # JSON dict as string
+    time_remaining = db.Column(db.Integer, default=7200)
+    status = db.Column(db.String(20), default='ongoing')
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user = db.relationship('User', backref='exam_attempts')
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    submitted_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     is_retake = db.Column(db.Boolean, default=False)
 
+# QuestionAttempt model
 class QuestionAttempt(db.Model):
     __tablename__ = 'question_attempts'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # You can link this to your User model if needed
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     subject = db.Column(db.String(200), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     selected_option = db.Column(db.String(1), nullable=True)
     is_correct = db.Column(db.Boolean, nullable=True)
 
+    #ExamREsult
 class ExamResult(db.Model):
     __tablename__ = 'exam_results'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     score = db.Column(db.Integer, nullable=False)
-    total = db.Column(db.Integer, nullable=False)  # total questions
+    total = db.Column(db.Integer, nullable=False)
     percentage = db.Column(db.Float, nullable=False)
-    subject_scores = db.Column(db.Text, nullable=True)  # JSON string
-    selected_subjects = db.Column(db.Text, nullable=True) # NEW: JSON string of selected subject
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    subject_scores = db.Column(db.Text, nullable=True)      # JSON string
+    selected_subjects = db.Column(db.Text, nullable=True)   # JSON string
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
+    #donatedPQ
 class DonatedPQ(db.Model):
     __tablename__ = 'donated_pq'
     id = db.Column(db.Integer, primary_key=True)
@@ -161,18 +165,17 @@ class DonatedPQ(db.Model):
     exam_type = db.Column(db.String(50), nullable=False)
     filename = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
-
+    upload_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    #Admin
 class Admin(db.Model):
     __tablename__ = 'admin'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)   
+    password_hash = db.Column(db.String(255), nullable=False)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-    def set_password(self, password):
-        self.password = generate_password_hash(password)
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
@@ -542,9 +545,12 @@ def is_blocked_for_exam(user, exam_mode):
     blocked_until = user.blocked_modes.get(exam_mode)
     if blocked_until and isinstance(blocked_until, str):
         blocked_until = datetime.fromisoformat(blocked_until)
-    if blocked_until and blocked_until > datetime.utcnow():
+        if blocked_until.tzinfo is None: # Make it timezone-aware (UTC)
+            blocked_until = blocked_until.replace(tzinfo=timezone.utc)
+    if blocked_until and blocked_until > datetime.now(timezone.utc):
         return True, blocked_until
     return False, None
+
 
 @app.route('/exam/postutme', methods=['GET', 'POST'])
 def postutme_exam():
@@ -552,11 +558,15 @@ def postutme_exam():
     if not user:
         flash("Session expired. Please log in again.", "danger")
         return redirect(url_for('login'))
-    user = User.query.get(session.get('user_id'))
-    blocked, blocked_until = False, None
-    if user:
-        blocked, blocked_until = is_blocked_for_exam(user, 'postutme')
-    return render_template('postutme.html', blocked=blocked, blocked_until=blocked_until)
+
+    blocked, blocked_until = is_blocked_for_exam(user, 'postutme')
+    
+    return render_template(
+        'postutme.html',
+        blocked=blocked,
+        blocked_until=blocked_until,
+        current_time=datetime.now(timezone.utc)  # ✅ This line fixes the Jinja2 error
+    )
 
 # =========================== #
 # PIN Verification Function   #
