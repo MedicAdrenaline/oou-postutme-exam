@@ -3,15 +3,13 @@
 {% block title %}Verify OTP{% endblock %}
 
 {% block content %}
-<div class="container mt-5 text-center">
-    <h2>Email Verification</h2>
-    <p>Please enter the OTP sent to your email address.</p>
-
+<div class="form-container" style="color: black; font-size: x-large; font-weight: bolder;">
+    <h2>EMAIL VERIFICATION</h2>
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-            <div class="flash-messages">
+            <div class="flash-messages"  style="color: black; font-size: large; font-weight: bolder;">
                 {% for category, message in messages %}
-                    <div class="flash-{{ category }} mt-3">{{ message }}</div>
+                    <div class="flash-{{ category }} mt-3" style="color: black; font-size: large; font-weight: bolder;">{{ message }}</div>
                 {% endfor %}
             </div>
         {% endif %}
@@ -19,57 +17,25 @@
 
     <form method="POST">
         <div class="form-group">
-            <label for="otp">OTP</label>
-            <input type="text" name="otp" id="otp" maxlength="6" class="form-control" required placeholder="Enter 6-digit OTP">
+            <label for="otp" style="color: blue; font-size: x-large;">Please enter the OTP sent to your Email Address</label>
+            <input mode="text" name="otp" id="otp" maxlength="6" class="form-control" required placeholder="Enter 6-digit OTP">
         </div>
 
-        <button type="submit" class="btn btn-primary mt-3">Verify OTP</button>
+        <button mode="submit" class="btn btn-primary mt-3">Verify OTP</button>
     </form>
 
     <div class="mt-4">
-        <p class="small">Didn't receive the OTP? <a href="{{ url_for('resend_otp') }}">Resend OTP</a></p>
+        <p class="small" style="color: darkblue;">Didn't receive the OTP? <a href="{{ url_for('resend_otp') }}"
+            style="color: black; font-size: x-large; font-weight: bolder;">Resend OTP</a></p>
     </div>
 
     {% if session.get('pending_user_id') %}
         <p>If you do not see the email, kindly check your spam folder.</p>
     {% endif %}
 
-    <p class="switch-link mt-3">
-        Already verified? <a href="{{ url_for('login') }}">Go to Login</a>
+    <p class="switch-link mt-3" style="color: darkblue; font-size: x-large; font-weight: bold;">
+        Already verified? <a href="{{ url_for('login') }}" style="color: black; font-size: x-large; 
+        font-weight: bolder; text-decoration: underline;">Go to Login</a>
     </p>
 </div>
-
-<div class="footer">
-    <p class="footer-text">Developed by Medic Adrenaline</p>
-    <p class="motivational-quote">"The only limit to our realization of tomorrow is our doubts of today." - Medic Adrenaline</p>
-</div>
-
-{% endblock %}
-
-{% block styles %}
-<style>
-    .footer {
-        background-color: #f8f9fa;
-        padding: 20px;
-        text-align: center;
-        margin-top: 30px;
-        border-top: 2px solid #ddd;
-    }
-
-    .footer-text {
-        font-size: 18px;
-        font-weight: bold;
-        color: #333;
-    }
-
-    .motivational-quote {
-        font-size: 16px;
-        font-style: italic;
-        color: #555;
-    }
-
-    .footer-text, .motivational-quote {
-        margin: 5px 0;
-    }
-</style>
 {% endblock %}

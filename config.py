@@ -46,3 +46,6 @@ class Config:
         "EMAIL_HOST_PASSWORD": os.getenv("EMAIL_PASS_5")
     }
 ]
+# adrena_ai
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    WOLFRAM_APP_ID = os.getenv("WOLFRAM_APP_ID")

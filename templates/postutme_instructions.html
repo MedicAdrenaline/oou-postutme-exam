@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admission Instructions - SmartPrep</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://unpkg.com/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', sans-serif;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .dark-mode {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+
+    .instructions-container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 30px;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .dark-mode .instructions-container {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+    }
+
+    .instructions-container h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #007bff;
+    }
+
+    .dark-mode .instructions-container h2 {
+      color: #66b2ff;
+    }
+
+    .instructions-container h4 {
+      text-align: center;
+      margin-bottom: 25px;
+      font-weight: 500;
+    }
+
+    .instructions-container ul {
+      list-style-type: decimal;
+      padding-left: 20px;
+    }
+
+    .instructions-container ul li {
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-style: italic;
+      color: #6c757d;
+      margin-top: 30px;
+    }
+
+    .dark-mode .footer-note {
+      color: #b0b0b0;
+    }
+
+    .toggle-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .toggle-container button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    .toggle-container button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toggle-container">
+    <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
+  </div>
+
+  <div class="mt-3 container" style="width: 18%;">
+    <a href="/" class="btn btn-secondary w-100">Back to Welcome page</a>
+</div>
+
+  <!-- OOU Instructions Section -->
+  <div class="instructions-container" data-aos="fade-up">
+    <h2>OOU POST-UTME Instructions</h2>
+    <h4>Kindly adhere to the following instructions carefully</h4>
+    <ul>
+      <li>Candidates must have a minimum of 180 in JAMB and at least 5 credits (not more than 2 sittings) to qualify for PUTME.</li>
+      <li>All candidates must complete the online screening form before the deadline.</li>
+      <li>False information may lead to automatic disqualification.</li>
+      <li>Do not bring mobile phones, watches, or electronic devices to the exam center.</li>
+      <li>Keep a copy of this slip for future reference.</li>
+      <li>Biometric (thumbprint) verification is COMPULSORY at the exam center.</li>
+      <li>Failure to appear for the exam results in forfeiture.</li>
+      <li>No change of UTME exam center is allowed.</li>
+      <li>Dress smart and corporate.</li>
+      <li>Arrive 30 minutes before the scheduled exam time.</li>
+    </ul>
+    <div class="footer-note">
+      Join our Admission Updates group on your dashboard for latest info.
+    </div>
+  </div>
+
+  <!-- Post-JAMB Guidelines Section -->
+  <div class="instructions-container" data-aos="fade-up" data-aos-delay="200">
+    <h2>READ ME</h2>
+    <h4>Follow these steps to increase your chances of success</h4>
+    <ul>
+      <li>Arrive early at your Post-JAMB exam center. Locate the venue a day before to avoid confusion.</li>
+      <li>Bring only necessary items — avoid mobile phones and banned gadgets.</li>
+      <li>Take extra stationery like pencils, erasers, and calculators.</li>
+      <li>Dress comfortably and smartly to make a good impression.</li>
+      <li>Stay silent in the exam hall. Any noise or misconduct may lead to disqualification.</li>
+      <li>Listen to all instructions and tick or shade correctly. Stop writing once time is up.</li>
+      <li>If unsure about a question, skip it and return later to save time.</li>
+      <li>Don’t rely on luck — consistent practice is key to passing.</li>
+      <li>General Paper is common across schools, so prepare adequately.</li>
+    </ul>
+    <div class="footer-note">
+      This guide and practice will help you pass your Post-JAMB in one sitting.
+    </div>
+  </div>
+
+  <!-- JS Scripts -->
+  <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+  <script>
+    AOS.init();
+    function toggleMode() {
+  const isDark = document.body.classList.toggle("dark-mode");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+}
+window.onload = () => {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+  }
+  const chatBox = document.getElementById("chat-box");
+  chatBox.scrollTop = chatBox.scrollHeight;
+};
+  </script>
+</body>
+</html>

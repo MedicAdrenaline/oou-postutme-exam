@@ -3,51 +3,54 @@
 {% block title %}Register{% endblock %}
 
 {% block content %}
-<div class="form-container">
-    <h2>Create an Account</h2>
+<div class="form-container" style="color: blue; font-size: x-large; font-weight: bolder;">
+    <h2>CREATE AN ACCOUNT</h2>
 
     {% with messages = get_flashed_messages() %}
       {% if messages %}
-        <div class="flash-messages">
+        <div class="flash-messages" style="color: black; font-size: x-large; font-weight: bolder;">
           {% for message in messages %}
             <p>{{ message }}</p>
           {% endfor %}
         </div>
       {% endif %}
     {% endwith %}
+   
+
 
     <form method="POST">
         <div class="form-group">
-            <label for="username">Username</label>
-            <input type="text" id="username" name="username" required>
+            <label for="username" style="color: black; font-size: x-large; font-weight: bold; top: 30px;">Username</label>
+            <input mode="text" id="username" name="username" required required placeholder="Enter Username">
         </div>
 
         <div class="form-group">
-            <label for="email">Email Address</label>
-            <input type="email" id="email" name="email" required>
+            <label for="email" style="color: black; font-size: x-large; font-weight: bold;">Email Address</label>
+            <input mode="email" id="email" name="email" required  required placeholder="Enter your Email Address">
         </div>
 
         <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required placeholder="Password must be at least 8 characters long">
-        </div>
-
-        <div class="form-group">
-            <label for="confirm_password">Confirm Password</label>
-            <input type="password" id="confirm_password" name="confirm_password" required>
-        </div>
-
-        <button type="submit" class="btn">Register</button>
-    </form>
-
-    <p class="switch-link">
-        Already have an account? <a href="{{ url_for('login') }}">Login here</a>
-    </p>
+    <label for="password" style="color: black; font-size: x-large; font-weight: bold;">Password</label>
+    <div class="input-container">
+        <input type="password" id="password" name="password" placeholder="Password must be at least 6 characters long" required>
+        <span class="toggle-icon" onclick="toggleVisibility(this)">👁️</span>
+    </div>
 </div>
 
-<div class="footer">
-    <p class="footer-text">Developed by Medic Adrenaline</p>
-    <p class="motivational-quote">"Believe you can and you're halfway there." - Medic Adrenaline</p>
+<div class="form-group">
+    <label for="confirm_password" style="color: black; font-size: x-large; font-weight: bold;">Confirm Password</label>
+    <div class="input-container">
+        <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
+        <span class="toggle-icon" onclick="toggleVisibility(this)">👁️</span>
+    </div>
+</div>
+        <button mode="submit" class="btn">Register</button>
+    </form>
+
+    <p class="switch-link" style="color: darkblue; font-size: x-large; font-weight: bold;">
+        Already have an account? <a href="{{ url_for('login') }}" style="color: black; font-size:
+        x-large; text-decoration: underline; font-weight: bolder;">Login here</a>
+    </p>
 </div>
 
 <script>
@@ -62,32 +65,4 @@
     });
 </script>
 
-{% endblock %}
-
-{% block styles %}
-<style>
-    .footer {
-        background-color: #f8f9fa;
-        padding: 20px;
-        text-align: center;
-        margin-top: 30px;
-        border-top: 2px solid #ddd;
-    }
-
-    .footer-text {
-        font-size: 18px;
-        font-weight: bold;
-        color: #333;
-    }
-
-    .motivational-quote {
-        font-size: 16px;
-        font-style: italic;
-        color: #555;
-    }
-
-    .footer-text, .motivational-quote {
-        margin: 5px 0;
-    }
-</style>
 {% endblock %}

@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="alert alert-success alert-dismissible fade show alert-message" role="alert">
+            {{ messages[0] }}
+        </div>
+        <script>
+            setTimeout(() => {
+                document.querySelector('.alert-message')?.classList.remove('show');
+            }, 3000);
+        </script>
+      {% endif %}
+    {% endwith %}
+    
+    <div class="container text-center generate-pin-container">
+  <p class="mb-4">KINDLY GENERATE YOUR PIN IF YOU HAV'T, TO GET STARTED</p>
+  <a href="{{ url_for('generate_pin') }}" class="btn btn-success mb-4">GENERATE PIN</a>
+</div>
+    
+    <div  class="welcome-username">
+   <h3>Welcome 🤗🤗, {{ username }}</h3>
+</div>
+    <div class="generate-pin">
+        <p>CLICK HERE TO ENTER PIN IF YOU'VE GENERATED ONE</p>
+        <a href="{{ url_for('postutme_exam') }}" class="btn btn-warning exam-button">ENTER PIN</a>
+    </div>
+
+    <div class="social-section">
+        <p>JOIN OUR SOCIAL GROUPS</p>
+        <p>Join For Intensive Brainstorming, Tutorials And Admission Updates.</p>
+        <a href="https://chat.whatsapp.com/FmlWgWaqhW8E47ETK8oIwQ" class="btn btn-outline-info m-2" style="background-color: blue; 
+        font-size: large; font-weight: bolder;">WhatsApp Community</a>
+         <a href="https://chat.whatsapp.com/LYXPM3T5MVzKHCbqk8JMCK" class="btn btn-outline-info m-2"  style="background-color: blue; 
+        font-size: large; font-weight: bolder;">Putme/Waec Group</a>
+        <a href="t.me/MedicAdrenaline1" class="btn btn-outline-success m-2"  style="background-color: black; 
+        font-size: large; font-weight: bolder;">Telegram Channel</a>
+        <a href="https://youtube.com/@medicadrenaline?si=uzfEhkBbUiXkh4d4" class="btn btn-outline-danger m-2"  style="background-color: black; 
+        font-size: large; font-weight: bolder;">YouTube Channel</a>
+    </div>
+</div>
+
+<a href="https://chat.whatsapp.com/FmlWgWaqhW8E47ETK8oIwQ" class="btn btn-outline-primary fixed-top-right"  style="background-color: black; 
+        font-size: large; font-weight: bolder;">ADMISSION UPDATES</a>
+<a href="{{ url_for('logout') }}" class="btn btn-outline-danger fixed-bottom-right"  style="background-color: blue; 
+        font-size: large; font-weight: bolder;">Logout</a>
+
+<div class="marquee-container">
+  <div class="marquee-content">
+    Welcome to Medic Adrenaline Exam Practice Platform! -------------------------------------------
+    Keep pushing forward, you're doing great! -- Medic Adrenaline! -----------------------------------------------------------  
+    Success is no accident. It is hard work and learning. -- Medic Adrenaline! ----------------------------------------------------------  
+    Don't stop when you're tired. Stop when you're done. -- Medic Adrenaline! ---------------------------------------------------------  
+    Every expert was once a beginner. -- Medic Adrenaline! -----------------------------------------------------
+    Make today count! -- Medic Adrenaline! ------------------------------------------------------  
+    Stay focused and never give up! -- Medic Adrenaline! ------------------------------------------------------- 
+    You were born to win. -- Medic Adrenaline! ------------------------------------------------------ 
+    Study now, shine later. -- Medic Adrenaline! ------------------------------------------------------------  
+    Believe in yourself! -- Medic Adrenaline! ------------------------------------------------------ 
+    Consistency is the key to excellence. -- Medic Adrenaline! --------------------------------------------------- 
+    Sometimes those trying to bring you down don’t realize you are part of the reason they are still standing. --Medic Adrenaline! ---------------------------------------------------
+    Remember this: “PLUS THEM MINUS THEM, WE GONNA MAKE IT” -- They are not God. -- Medic Adrenaline ---------------------------------------------------
+    Don’t hurt others just because you are hurt. -- Medic Adrenaline ---------------------------------------------------
+    If you're giving your all to someone and it's not enough, you're giving it to the wrong person. -- Medic Adrenaline ---------------------------------------------------
+    He that talks much lies much.-- Medic Adrenaline ---------------------------------------------------
+    Stop hating sinners on behalf of GOD. Even GOD is wondering who sent you. --Medic Adrenaline ---------------------------------------------------
+    When you're fruitful, don’t mistake the admiration of men as love for YOU -- They only love the fruits. -- Medic Adrenaline ---------------------------------------------------
+  </div>
+</div>
+ <style>
+        body {
+            background-color: rgba(255, 255, 255, 0.288);
+            position: relative;
+            overflow-x: hidden;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .exam-button {
+            margin: 10px;
+            padding: 15px 30px;
+            font-size: 18px;
+        }
+        .fixed-top-right {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 1050;
+        }
+
+        .fixed-bottom-right {
+            position: fixed;
+            bottom: 13%;
+            right: 20px;
+            z-index: 1050;
+        }
+        .welcome-username {
+            position: fixed;
+            top: 15%;
+            left: 20px;
+            color: black;
+            font-size: x-large;
+            font-weight: bolder;
+            font-style: italic;
+        }
+        .social-section {
+            top: 60%;
+            left: 15%;
+            color: black;
+            position: fixed;
+            text-align: center;
+            font-size: x-large;
+            font-weight: bolder;
+            font-style: italic;
+            z-index: 1050;}
+
+.generate-pin {
+    position: fixed;
+    top: 40%; /* adjust this to raise/lower */
+    left: 45%;
+    transform: translateX(-50%);
+    text-align: center;
+    padding: 20px;
+    color: black;
+    border-radius: 10px;
+    font-size: x-large;
+    font-weight: bolder;
+}
+.generate-pin-container {
+  position: fixed;
+  bottom: 50%;
+  left: 45%;
+  font-size: x-large;
+  transform: translateX(-50%);
+  color: black;
+  padding: 20px 30px;
+  border-radius: 12px;
+  font-weight: bolder;
+
+}
+        .exam-button {
+            font-size: 1rem;
+            padding: 8px 16px;
+        }
+        
+        .marquee-container {
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            background: transparent;
+            color: white;
+            font-weight: bolder;
+            font-style: italic;
+            padding: 10px 0;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            z-index: 1000;
+        }
+        .marquee-content {
+            display: inline-block;
+            padding-left: 100%;
+            animation: marquee 170s linear infinite;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-100%); }
+        }
+        .alert-message {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1050;
+        }
+    </style>
+</body>
+{% endblock %}

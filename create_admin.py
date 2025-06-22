@@ -1,10 +1,9 @@
-from app import app, db
-from app import Admin  # Ensure Admin is imported from app.py
+from app import app, db, Admin # Ensure Admin is imported from app.py
 from werkzeug.security import generate_password_hash
 
 def create_admin():
-    username = input("Enter admin username: ")
-    password = input("Enter admin password: ")
+    username = input("Medic Adrenaline: ")
+    password = input("MedicAdrenaline@123: ")
     password_hash = generate_password_hash(password)
 
     with app.app_context():

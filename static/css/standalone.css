@@ -1,0 +1,104 @@
+body.standalone-bg {
+    background: url('../images/oou_logo.png') no-repeat center center;
+    background-size: cover;
+    min-height: 100vh;
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.top-right-logo {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.top-right-logo img {
+    width: 60px;
+}
+
+.form-wrapper {
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+}
+
+.form-wrapper h2 {
+    color: #222;
+    margin-bottom: 10px;
+}
+
+.form-wrapper p {
+    color: #555;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.btn {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 22px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.btn:hover {
+    background-color: #0056b3;
+}
+
+.alert {
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    color: white;
+    font-size: 14px;
+}
+
+.alert-success { background-color: #28a745; }
+.alert-danger { background-color: #dc3545; }
+.alert-warning { background-color: #ffc107; color: black; }
+
+.extra-links {
+    margin-top: 20px;
+    font-size: 14px;
+    color: #444;
+}
+
+.extra-links a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.quote {
+    margin-top: 25px;
+    font-style: italic;
+    font-size: 13px;
+    color: #666;
+}

@@ -1,63 +1,68 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+# ======= #
+# IMPORTS #
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, json
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests, secrets, os, uuid, string, random, time, threading
 from email_utils import send_otp_email, send_exam_pins_email, send_reset_password_email
 from functools import wraps
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-from datetime import datetime, timedelta, timezone
 from flask_migrate import Migrate
 from apscheduler.schedulers.background import BackgroundScheduler
-import atexit 
+import atexit
+from werkzeug.utils import secure_filename
+from config import Config
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.sql.expression import func
+from sqlalchemy.sql import func
+from sqlalchemy.exc import IntegrityError
+import app 
+from collections import defaultdict
+from datetime import datetime, timezone, timedelta
+expiration = datetime.now(timezone.utc) - timedelta(hours=24)
+from app import app
+import openai, requests, wolframalpha
+from transformers import pipeline  
+from openai import OpenAI
 
-def admin_login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not session.get('is_admin'):
-            flash("Admin access required.", "error")
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-def generate_pin_for_exam(mode, user_id):
-    pin_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
-    new_pin = Pin(
-        user_id=user_id,
-        pin_code=pin_code,
-        exam_mode=mode,
-        is_used=False,
-        is_active=False)
-    db.session.add(new_pin)
-    db.session.commit()
-    return pin_code
-
-def get_user_by_email_or_username(identifier):
-    return User.query.filter(
-        (User.email == identifier) | (User.username == identifier)
-    ).first()
-# Load environment variables
-from config import Config
 
 app = Flask(__name__)
-
 app.config.from_object(Config)
 app.secret_key = Config.SECRET_KEY
 
+# Login Manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "admin_login"
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
 
 # Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{Config.DB_USER}:{Config.DB_PASSWORD}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
+app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql://{Config.DB_USER}:{Config.DB_PASSWORD}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-migrate = Migrate(app, db) 
 
-# Models
-from sqlalchemy.dialects.mysql import JSON
 
+# ====== #
+# MODELS #
+# ====== #
+def default_mode_attempts():
+    return {
+        "jamb": 0,
+        "waec": 0,
+        "postutme": 0,
+        "alevel": 0
+    }
+def default_blocked_modes():
+    return {
+        "jamb": False,
+        "waec": False,
+        "postutme": False,
+        "alevel": False
+    }
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -66,25 +71,13 @@ class User(UserMixin, db.Model):
     password = db.Column(db.String(255), nullable=False)
     is_verified = db.Column(db.Boolean, default=False)
     otp = db.Column(db.Integer)
-    pin_attempts = db.Column(db.Integer, default=0)
-    last_attempt_time = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    blocked_modes = db.Column(JSON, default=lambda: {"jamb": False, "waec": False, "postutme": False, "alevel": False})
+    pin_attempts = db.Column(MutableDict.as_mutable(JSON), default=default_mode_attempts)# Use MutableDict to auto-track changes inside the JSON columns
+    blocked_modes = db.Column(MutableDict.as_mutable(JSON), default=default_blocked_modes)
     reset_token = db.Column(db.String(128), nullable=True)
     reset_token_expiration = db.Column(db.DateTime, nullable=True)
+    last_attempt_time = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    def set_password(self, password):
-        self.password = generate_password_hash(password) 
-# Example: {"JAMB": "2025-05-10 15:30:00", "WAEC": "2025-05-10 16:00:00"}
-
-def default_mode_attempts():
-    return {
-        "jamb": 0,
-        "waec": 0,
-        "postutme": 0,
-        "alevel": 0
-    }
-
 class Pin(db.Model):
     __tablename__ = 'pins'
     id = db.Column(db.Integer, primary_key=True)
@@ -95,29 +88,80 @@ class Pin(db.Model):
     exam_mode = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=False)
-    mode_attempts = db.Column(JSON, default=default_mode_attempts)
     user = db.relationship('User', backref=db.backref('pins', lazy=True))
+
+class UserExamSession(db.Model):
+    __tablename__ = 'user_exam_session'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    subject = db.Column(db.String(200), nullable=False)
+    exam_mode = db.Column(db.String(100), nullable=False)
+    question_ids = db.Column(db.Text, nullable=False)  # comma-separated question IDs
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref='exam_sessions')
 
 class Question(db.Model):
     __tablename__ = 'questions'
     id = db.Column(db.Integer, primary_key=True)
     exam_mode = db.Column(db.String(100), nullable=False)
-    question_text = db.Column(db.Text, nullable=False)
+    subject = db.Column(db.String(200), nullable=False)
+    question_text = db.Column(db.Text, nullable=True)  # nullable=True if question can be image-based only
+    question_image = db.Column(db.String(255), nullable=True)  # image URL or path
     option_a = db.Column(db.String(255), nullable=False)
     option_b = db.Column(db.String(255), nullable=False)
     option_c = db.Column(db.String(255), nullable=False)
     option_d = db.Column(db.String(255), nullable=False)
     correct_option = db.Column(db.String(1), nullable=False)
+    explanation = db.Column(db.Text, nullable=True)  # explanation text
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-class Score(db.Model):
-    __tablename__ = 'scores'
+class ExamAttempt(db.Model):
+    __tablename__ = 'exam_attempts'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    exam_mode = db.Column(db.String(100), nullable=False)  # 'jamb'
+    subjects = db.Column(db.String(255), nullable=False)  # store as JSON string or CSV of selected subjects
+    questions_json = db.Column(db.Text, nullable=False)  # JSON list of question IDs for this attempt
+    answers_json = db.Column(db.Text, nullable=True)  # JSON dict of {question_id: selected_answer}
+    time_remaining = db.Column(db.Integer, default=7200)  # seconds left
+    status = db.Column(db.String(20), default='ongoing')  # 'ongoing' or 'submitted'
+    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref='exam_attempts')
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_retake = db.Column(db.Boolean, default=False)
+
+class QuestionAttempt(db.Model):
+    __tablename__ = 'question_attempts'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # You can link this to your User model if needed
+    question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
+    exam_mode = db.Column(db.String(100), nullable=False)
+    subject = db.Column(db.String(200), nullable=False)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    selected_option = db.Column(db.String(1), nullable=True)
+    is_correct = db.Column(db.Boolean, nullable=True)
+
+class ExamResult(db.Model):
+    __tablename__ = 'exam_results'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     score = db.Column(db.Integer, nullable=False)
-    total_questions = db.Column(db.Integer, nullable=False)
-    date_taken = db.Column(db.DateTime, default=datetime.utcnow)
+    total = db.Column(db.Integer, nullable=False)  # total questions
+    percentage = db.Column(db.Float, nullable=False)
+    subject_scores = db.Column(db.Text, nullable=True)  # JSON string
+    selected_subjects = db.Column(db.Text, nullable=True) # NEW: JSON string of selected subject
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class DonatedPQ(db.Model):
+    __tablename__ = 'donated_pq'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(150), nullable=False)
+    subject = db.Column(db.String(100), nullable=False)
+    exam_type = db.Column(db.String(50), nullable=False)
+    filename = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Admin(db.Model):
     __tablename__ = 'admin'
@@ -127,33 +171,78 @@ class Admin(db.Model):
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
-
+    def set_password(self, password):
+        self.password = generate_password_hash(password)
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
 
-# Helper functions
-def generate_unique_pin():
-    while True:
-        new_pin = str(random.randint(100000, 999999))
-        if not Pin.query.filter_by(pin_code=new_pin).first():
-            return new_pin
-
-def verify_paystack_transaction(reference):
-    secret_key = os.getenv('PAYSTACK_SECRET_KEY')
-    headers = {
-        "Authorization": f"Bearer {secret_key}"
-    }
-    response = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
-    return response.json()
-
-# Routes
+# =================== #
+# REGISTRATION ROUTES #
+# =================== #
 @app.route('/')
 def welcome():
       return render_template('welcome.html')
+
+@app.route('/app-instructions' , methods=['GET', 'POST'])
+def app_instructions():
+    return render_template('app_instructions.html')
+
+@app.route('/postutme-instructions' , methods=['GET', 'POST'])
+def postutme_instructions():
+    return render_template('postutme_instructions.html')
+
+@app.route('/courses-cutoff' , methods=['GET', 'POST'])
+def courses_cutoff():
+    return render_template('courses_cutoff.html')
+
+
+@app.route('/aggregate-calculator', methods=['GET', 'POST'])
+def aggregate_calculator():
+    aggregate = None
+    error = None
+    if request.method == 'POST':
+        try:
+            jamb = float(request.form['jamb'])
+            postutme = float(request.form['postutme'])
+            if 0 <= jamb <= 400 and 0 <= postutme <= 100:
+                aggregate = round((jamb / 400 * 60) + (postutme / 100 * 40), 2)
+            else:
+                error = "JAMB score must be between 0–400 and Post-UTME between 0–100."
+        except ValueError:
+            error = "Please enter valid numbers."
+    return render_template("aggregate_calculator.html", aggregate=aggregate, error=error)
+UPLOAD_FOLDER = 'static/uploads/pqs'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+UPLOAD_FOLDER = 'static/uploads/pqs'
+ALLOWED_EXTENSIONS = {'pdf'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+@app.route('/donate-pq', methods=['GET', 'POST'])
+def donate_pq():
+    if request.method == 'POST':
+        title = request.form['title']
+        subject = request.form['subject']
+        exam_type = request.form['exam_type']
+        description = request.form['description']
+        file = request.files['file']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(save_path)
+            # Save to DB
+            new_pq = DonatedPQ(title=title, subject=subject, exam_type=exam_type, filename=filename, description=description)
+            db.session.add(new_pq)
+            db.session.commit()
+            flash("Past Question uploaded successfully!", "success")
+            return redirect(url_for('donate_pq'))
+        else:
+            flash("Only PDF files are allowed.", "danger")
+    # Show donated PQs
+    donated_pqs = DonatedPQ.query.order_by(DonatedPQ.id.desc()).all()
+    return render_template('donate_pq.html', pqs=donated_pqs)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -162,11 +251,9 @@ def register():
         email = request.form['email']
         password = request.form['password']
         confirm_password = request.form['confirm_password']
-
         if password != confirm_password:
             flash("Passwords don't match.")
             return redirect(url_for('register'))
-
         existing_user = User.query.filter((User.username == username) | (User.email == email)).first()
         if existing_user:
             if existing_user.is_verified:
@@ -174,20 +261,15 @@ def register():
                 return redirect(url_for('register'))
             db.session.delete(existing_user)
             db.session.commit()
-
         otp = random.randint(100000, 999999)
         hashed_pw = generate_password_hash(password)
-
         new_user = User(username=username, email=email, password=hashed_pw, otp=otp)
         db.session.add(new_user)
         db.session.commit()
-
         send_otp_email(email, otp)
         session['pending_user_id'] = new_user.id
-
         flash('OTP sent to your email. Verify to proceed.')
         return redirect(url_for('verify_otp'))
-
     return render_template('register.html')
 
 
@@ -196,12 +278,10 @@ def verify_otp():
     if 'pending_user_id' not in session:
         flash("No pending verification.")
         return redirect(url_for('register'))
-
     user = User.query.get(session['pending_user_id'])
     if not user:
         flash("Invalid session. Please register again.")
         return redirect(url_for('register'))
-
     if request.method == 'POST':
         entered_otp = request.form['otp']
         if str(user.otp) == entered_otp:
@@ -213,15 +293,14 @@ def verify_otp():
             return redirect(url_for('login'))
         else:
             flash("Incorrect OTP.")
-
     return render_template('verify_otp.html')
+
 
 @app.route('/resend-otp')
 def resend_otp():
     if 'pending_user_id' not in session:
         flash("No registration in progress.")
         return redirect(url_for('register'))
-
     user = User.query.get(session['pending_user_id'])
     if user:
         user.otp = random.randint(100000, 999999)
@@ -236,60 +315,51 @@ def login():
     if request.method == 'POST':
         username_or_email = request.form.get('username_or_email')
         password = request.form.get('password')
-
         if not username_or_email or not password:
             flash('Please fill out both fields.', 'error')
             return redirect(url_for('login'))
-
-        # Authenticate the user by username or email
+    # Authenticate the user by username or email
         user = User.query.filter((User.username == username_or_email) | (User.email == username_or_email)).first()
-
-        # Check if the user exists and the password is correct
+    # Check if the user exists and the password is correct
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
             flash('Login successful!', 'success')
-            return redirect(url_for('exam_homepage'))
-
+            return redirect(url_for('dashboard'))
         flash('Invalid username or password.', 'error')
         return redirect(url_for('login'))
-
     return render_template('login.html')
 
 # Function to generate a random OTP
 def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
-
 def generate_reset_token(length=5):
     # Generate a random 5-character alphanumeric token
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
 
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')
-
-        # Verify if the email exists in the database
+    # Verify if the email exists in the database
         user = User.query.filter_by(email=email).first()
         if user:
-            # Generate a 5-character token
+    # Generate a 5-character token
             token = generate_reset_token()
-            # Set expiration to 1 hour from now
+    # Set expiration to 1 hour from now
             expiration_time = datetime.now(timezone.utc) + timedelta(hours=1)
-
-            # Update user record with the token and expiration
+    # Update user record with the token and expiration
             user.reset_token = token
             user.reset_token_expiration = expiration_time
             db.session.commit()
-
-            # Send the token via email
+    # Send the token via email
             send_reset_password_email(email, token)
-
             flash("A reset token has been sent to your email. Please check your inbox.", "info")
             return redirect(url_for('reset_password'))  
         else:
             flash("This email is not registered.", "error")
-
     return render_template('forgot_password.html')
+
 
 @app.route('/reset_password', methods=['GET', 'POST'])
 def reset_password():
@@ -297,172 +367,32 @@ def reset_password():
         token = request.form.get('token')
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
-
         if new_password != confirm_password:
             flash("Passwords do not match.", "error")
             return redirect(request.url)
-
-        # Find user by token
+    # Find user by token
         user = User.query.filter_by(reset_token=token).first()
-
         if not user:
             flash("Invalid or expired token.", "error")
             return redirect(url_for('forgot_password'))
-
-        # Check if token is expired
+    # Check if token is expired
         if user.reset_token_expiration and datetime.utcnow() > user.reset_token_expiration:
             flash("The reset link has expired. Please request a new one.", "error")
             return redirect(url_for('forgot_password'))
-
-        # Update password
+    # Update password
         user.password = generate_password_hash(new_password)
         user.reset_token = None
         user.reset_token_expiration = None
-
         db.session.commit()
-
         flash("Your password has been successfully reset.", "info")
         return redirect(url_for('login'))
-
     # If GET request, just render the form
     token = request.args.get('token')
     return render_template('reset_password.html', token=token)
 
-@app.route('/exam_homepage')
-def exam_homepage():
-    # Check if the user is logged in
-    if 'user_id' not in session:
-        flash("You need to log in to access the exam page.")
-        return redirect(url_for('login'))
-    
-    # Get the logged-in user's username (optional for personalized greeting)
-    user = User.query.get(session['user_id'])
-    
-    # Render the exam homepage, passing the username for display
-    return render_template('exam_homepage.html', username=user.username)
-
-# ===========================
-# Exam Mode Routes
-# ===========================
-
-@app.route('/exam/jamb', methods=['GET', 'POST'])
-def jamb_exam():
-    return render_template('jamb.html')
-
-@app.route('/exam/waec', methods=['GET', 'POST'])
-def waec_exam():
-    return render_template('waec.html')
-
-@app.route('/exam/postutme', methods=['GET', 'POST'])
-def postutme_exam():
-    return render_template('postutme.html')
-
-@app.route('/exam/alevel', methods=['GET', 'POST'])
-def alevel_exam():
-    return render_template('alevel.html')
-
-@app.route('/admission-updates')
-def admission_updates():
-    return render_template('admission_updates.html')
-
-
-# ===========================
-# PIN Verification Function
-# ===========================
-
-def verify_pin(pin, device_id, exam_mode, user):
-    # Check if the exam mode is blocked
-    if user.blocked_modes.get(exam_mode):
-        flash(f"You are blocked from accessing {exam_mode.upper()} due to multiple incorrect attempts.", "error")
-        return False
-
-    # Fetch the PIN entry
-    pin_entry = Pin.query.filter_by(pin_code=pin, exam_mode=exam_mode).first()
-
-    # If PIN is not found
-    if not pin_entry:
-        # Increment attempt count
-        user.pin_attempts += 1
-        user.last_attempt_time = datetime.utcnow()
-
-        # Block the mode if 5 incorrect attempts
-        if user.pin_attempts >= 5:
-            user.blocked_modes[exam_mode] = datetime.utcnow() + timedelta(hours=24)
-            flash(f"You are now blocked from {exam_mode.upper()} for 24 hours due to multiple incorrect attempts.", "error")
-        else:
-            remaining_attempts = 5 - user.pin_attempts
-            flash(f"Invalid PIN. Attempts left: {remaining_attempts}", "error")
-
-        db.session.commit()
-        return False
-
-    # Reset attempts on successful entry
-    user.pin_attempts = 0
-
-    # First-time use: Attach device_id
-    if not pin_entry.device_id:
-        pin_entry.device_id = device_id
-        pin_entry.is_used = True
-        db.session.commit()
-        flash("PIN verified and device locked to your device.", "success")
-        return True
-
-    # Subsequent use: Verify device_id
-    if pin_entry.device_id == device_id:
-        flash("PIN verified.", "success")
-        return True
-    else:
-        flash("PIN already used on another device.", "error")
-        return False
-
-
-# =====================
-# PIN Verification Routes
-# =====================
-
-@app.route('/verify_jamb_pin', methods=['POST'])
-def verify_jamb_pin_route():
-    pin = request.form.get('pin')
-    device_id = request.form.get('device_id')
-    user = User.query.get(session.get('user_id'))
-    if user and verify_pin(pin, device_id, 'jamb', user):
-        return redirect(url_for('jamb_exam'))
-    return redirect(url_for('jamb_exam'))
-
-
-@app.route('/verify_waec_pin', methods=['POST'])
-def verify_waec_pin_route():
-    pin = request.form.get('pin')
-    device_id = request.form.get('device_id')
-    user = User.query.get(session.get('user_id'))
-    if user and verify_pin(pin, device_id, 'waec', user):
-        return redirect(url_for('waec_exam'))
-    return redirect(url_for('waec_exam'))
-
-
-@app.route('/verify_postutme_pin', methods=['POST'])
-def verify_postutme_pin_route():
-    pin = request.form.get('pin')
-    device_id = request.form.get('device_id')
-    user = User.query.get(session.get('user_id'))
-    if user and verify_pin(pin, device_id, 'postutme', user):
-        return redirect(url_for('postutme_exam'))
-    return redirect(url_for('postutme_exam'))
-
-
-@app.route('/verify_alevel_pin', methods=['POST'])
-def verify_alevel_pin_route():
-    pin = request.form.get('pin')
-    device_id = request.form.get('device_id')
-    user = User.query.get(session.get('user_id'))
-    if user and verify_pin(pin, device_id, 'alevel', user):
-        return redirect(url_for('alevel_exam'))
-    return redirect(url_for('alevel_exam'))
-
-
-# ===========================
-# Function to Clean Unverified Users
-# ===========================
+# ================================== #
+# Function to Clean Unverified Users #
+# ================================== #
 def clean_unverified_users():
     with app.app_context():
         expiration = datetime.utcnow() - timedelta(hours=24)
@@ -475,52 +405,50 @@ def clean_unverified_users():
         db.session.commit()
         if users_to_delete:
             print(f"Cleaned {len(users_to_delete)} unverified users.")
-
 # Initialize and start the scheduler
 scheduler = BackgroundScheduler()
 scheduler.add_job(clean_unverified_users, 'interval', hours=1)
 scheduler.start()
-
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())
-    
+
+
+# Helper functions to generate a random PIN
+def generate_unique_pin():
+    while True:
+        new_pin = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+        if not Pin.query.filter_by(pin_code=new_pin).first():
+            return new_pin
+        
 @app.route('/generate-pin', methods=['GET', 'POST'])
 def generate_pin():
     if 'user_id' not in session:
         flash("Login first.")
         return redirect(url_for('login'))
-
     user = User.query.get(session['user_id'])
-
     if request.method == 'POST':
-        selected_modes = request.form.getlist('modes')
+        selected_modes = request.form.getlist('exam_mode')
         payment_method = request.form['payment_method']
         email = user.email
-        
         if not selected_modes:
-            flash('Please select at least one exam mode.', 'error')
+            flash('Select the checkbox below to proceed.', 'error')
             return redirect(url_for('generate_pin'))
         amount = calculate_amount(selected_modes)
         session['selected_modes'] = selected_modes
         session['payment_method'] = payment_method
         session['expected_amount'] = amount
-       
-
         if payment_method == 'paystack':
             reference = str(uuid.uuid4())
             session['payment_reference'] = reference
             payment_response = initiate_paystack_payment(email, amount, reference)
-
             if payment_response.get('status'):
                 return redirect(payment_response['data']['authorization_url'])
             else:
                 flash('Payment initiation failed. Try again.', 'error')
                 return redirect(url_for('generate_pin'))
-
         elif payment_method in ['whatsapp_proof', 'whatsapp_chat']:
             flash('Please contact admin via WhatsApp with payment proof for PIN activation.', 'info')
             return redirect(url_for('generate_pin'))
-
     return render_template('generate_pin.html')
 
 def calculate_amount(selected_modes):
@@ -532,11 +460,12 @@ def calculate_amount(selected_modes):
             amount += 2000
     return amount
 
+##PAYSTACK
 def initiate_paystack_payment(email, amount, reference):
     paystack_secret = os.getenv('PAYSTACK_SECRET_KEY')
     headers = {
         "Authorization": f"Bearer {paystack_secret}",
-        "Content-Type": "application/json"
+        "Content-mode": "application/json"
     }
     data = {
         "email": email,
@@ -547,25 +476,30 @@ def initiate_paystack_payment(email, amount, reference):
     response = requests.post("https://api.paystack.co/transaction/initialize", json=data, headers=headers)
     return response.json()
 
+def verify_paystack_transaction(reference):
+    secret_key = os.getenv('PAYSTACK_SECRET_KEY')
+    headers = {
+        "Authorization": f"Bearer {secret_key}"
+    }
+    response = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
+    return response.json()
+
+
 @app.route('/payment_callback')
 def payment_callback():
     reference = request.args.get('reference')
     if not reference:
         flash("Missing payment reference.")
-        return redirect(url_for('exam_homepage'))
-
+        return redirect(url_for('dashboard'))
     user_id = session.get('user_id')
     selected_modes = session.get('selected_modes')
-
     if not user_id or not selected_modes:
         flash("Session expired or invalid.")
-        return redirect(url_for('exam_homepage'))
-
+        return redirect(url_for('dashboard'))
     verification = verify_paystack_transaction(reference)
     if verification.get("data", {}).get("status") == "success":
         user = User.query.get(user_id)
         generated_pins = []
-
         for mode in selected_modes:
             new_pin = Pin(
                 user_id=user.id,
@@ -575,13 +509,24 @@ def payment_callback():
             db.session.add(new_pin)
             db.session.commit()
             generated_pins.append(f"{mode.upper()}: {new_pin.pin_code}")
-
         send_exam_pins_email(user.email, generated_pins)
-        flash("Payment successful. PIN(s) sent to your email.")
+        flash("Payment successful. PIN(s) sent to your email.") 
     else:
         flash("Payment verification failed.")
+    return redirect(url_for('dashboard'))
 
-    return redirect(url_for('exam_homepage'))
+
+@app.route('/dashboard')
+def dashboard():
+    # Check if the user is logged in
+    if 'user_id' not in session:
+        flash("You need to log in to access the dashboard.")
+        return redirect(url_for('login'))
+    # Get the logged-in user's username
+    user = User.query.get(session['user_id'])
+     # Render the dashboard, passing the username for display
+    return render_template('dashboard.html', username=user.username)
+
 
 @app.route('/logout')
 def logout():
@@ -589,145 +534,594 @@ def logout():
     flash("Logged out.")
     return redirect(url_for('login'))
 
-# Helper function to generate a random PIN
-def generate_pin():
-    return ''.join(random.choices(string.digits, k=6))
 
+# ================= #
+# Exam mode Routes  #
+# ================= #
+def is_blocked_for_exam(user, exam_mode):
+    blocked_until = user.blocked_modes.get(exam_mode)
+    if blocked_until and isinstance(blocked_until, str):
+        blocked_until = datetime.fromisoformat(blocked_until)
+    if blocked_until and blocked_until > datetime.utcnow():
+        return True, blocked_until
+    return False, None
 
-@app.route('/admin-login', methods=['GET', 'POST'])
-def admin_login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        
-        admin = Admin.query.filter_by(username=username).first()
-        if admin and admin.check_password(password):
-            session['admin_logged_in'] = True  # Optional, for your own tracking
-            session['is_admin'] = True  # Required for @admin_login_required decorator
-            flash('Logged in successfully as admin.', 'success')
-            return redirect(url_for('admin_dashboard'))
+@app.route('/exam/postutme', methods=['GET', 'POST'])
+def postutme_exam():
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Session expired. Please log in again.", "danger")
+        return redirect(url_for('login'))
+    user = User.query.get(session.get('user_id'))
+    blocked, blocked_until = False, None
+    if user:
+        blocked, blocked_until = is_blocked_for_exam(user, 'postutme')
+    return render_template('postutme.html', blocked=blocked, blocked_until=blocked_until)
+
+# =========================== #
+# PIN Verification Function   #
+# =========================== #
+def verify_pin(pin, device_id, exam_mode, user):
+    # Check if the exam mode is blocked (blocked_until is a datetime or False)
+    blocked_until = user.blocked_modes.get(exam_mode)
+    if blocked_until and isinstance(blocked_until, str):
+        # If stored as string in DB, parse back to datetime
+        blocked_until = datetime.fromisoformat(blocked_until)
+    if blocked_until and blocked_until > datetime.utcnow():
+        flash(f"You are blocked from accessing {exam_mode.upper()} until {blocked_until}.", "error")
+        return False
+    pin_entry = Pin.query.filter_by(pin_code=pin, exam_mode=exam_mode).first()
+    attempts = user.pin_attempts.get(exam_mode, 0)
+    if not pin_entry:
+        attempts += 1
+        user.pin_attempts[exam_mode] = attempts
+        if attempts >= 5:
+            block_duration = timedelta(hours=24)
+            block_time = datetime.utcnow() + block_duration
+            user.blocked_modes[exam_mode] = block_time.isoformat()
+            flash(f"You are now blocked from {exam_mode.upper()} for 24 hours due to multiple incorrect attempts.", "error")
         else:
-            flash('Invalid admin credentials.', 'error')
-            return redirect(url_for('admin_login'))
-    
-    return render_template('admin_login.html')
+            remaining_attempts = 5 - attempts
+            flash(f"Invalid PIN. Attempts left: {remaining_attempts}", "error")
+        db.session.commit()
+        return False
+    # Successful PIN: reset attempts and unblock
+    user.pin_attempts[exam_mode] = 0
+    user.blocked_modes[exam_mode] = False
+    if not pin_entry.device_id:
+        pin_entry.device_id = device_id
+        pin_entry.is_used = True
+        db.session.commit()
+        flash("PIN verified and locked to your device.", "success")
+        return True
+    if pin_entry.device_id == device_id:
+        flash("PIN verified.", "success")
+        return True
+    flash("PIN already used on another device.", "error")
+    return False
 
 
-@app.route('/admin-dashboard', methods=['GET', 'POST'])
-def admin_dashboard():
-    if 'admin_logged_in' not in session:
-        return redirect(url_for('admin_login'))
+# =====================
+# PIN Verification Routes
+# =====================
+@app.route('/verify_postutme_pin', methods=['POST'])
+def verify_postutme_pin_route():
+    pin = request.form.get('pin')
+    device_id = request.form.get('device_id')
+    user = User.query.get(session.get('user_id'))
+    if user and verify_pin(pin, device_id, 'postutme', user):
+        flash("PIN verified successfully! Welcome to your POSTUTME dashboard.", "success")
+        return redirect(url_for('postutme_dashboard'))
+    flash("Invalid or already used PIN. Please try again.", "error")
+    return redirect(url_for('postutme_exam'))
 
-    # Handle PIN sending from dashboard
+
+############
+#POST UTME #
+############
+@app.route('/postutme_dashboard', methods=['GET', 'POST'])
+def postutme_dashboard():
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Session expired. Please log in again.", "danger")
+        return redirect(url_for('login'))
+
     if request.method == 'POST':
-        username_or_email = request.form['username_or_email']
-        selected_modes = request.form.getlist('modes')
+        selected_subjects = request.form.getlist('subjects')
+        if len(selected_subjects) > 5:
+            flash("You can only select up to 5 subjects at a time.", "danger")
+            return redirect(url_for('postutme_dashboard'))
 
-        user = User.query.filter(
-            (User.username == username_or_email) | 
-            (User.email == username_or_email)
-        ).first()
+        retake = request.form.get('retake') == 'true'
+        selected_subjects_full = selected_subjects
+        session['postutme_subjects'] = selected_subjects_full
+        session['current_subject'] = 'English'  # Default first subject if needed
+        session.pop('postutme_answers', None)
 
-        if not user:
-            flash('User not found.')
-        elif not selected_modes:
-            flash('Please select at least one exam mode.')
-        else:
-            pin_code = generate_pin()
-            for mode in selected_modes:
-                new_pin = Pin(user_id=user.id, pin_code=pin_code, exam_mode=mode.upper(), is_active=True)
-                db.session.add(new_pin)
+        if not retake:
+            previous_attempt = ExamAttempt.query.filter_by(
+                user_id=user.id, exam_mode='POSTUTME', status='ongoing'
+            ).first()
+            if previous_attempt:
+                previous_attempt.status = 'expired'
+                db.session.commit()
+
+            questions_per_subject = {}
+            for subject in selected_subjects_full:
+                num_questions = 10
+                all_qs = Question.query.filter(
+                    func.lower(Question.subject) == subject.lower(),
+                    Question.exam_mode == 'POSTUTME'
+                ).all()
+
+                if len(all_qs) < num_questions:
+                    flash(f"Not enough questions for {subject}. Please try again later.", "danger")
+                    return redirect(url_for('postutme_dashboard'))
+
+                random.shuffle(all_qs)
+                selected_ids = [q.id for q in all_qs[:num_questions]]
+                questions_per_subject[subject] = selected_ids
+
+            new_attempt = ExamAttempt(
+                user_id=user.id,
+                exam_mode='POSTUTME',
+                status='ongoing',
+                subjects=json.dumps(selected_subjects_full),
+                questions_json=json.dumps(questions_per_subject),
+                started_at=datetime.utcnow()
+            )
+            db.session.add(new_attempt)
             db.session.commit()
 
-            send_exam_pins_email(user.email, {mode.upper(): pin_code for mode in selected_modes})
-            flash(f"PIN sent to {user.email} for {', '.join(selected_modes).upper()}.")
+            session['postutme_attempt_id'] = new_attempt.id
 
-    # Fetch data for dashboard display
-    inactive_pins = Pin.query.filter_by(is_active=False).all()
-    users = User.query.all()
+        flash("Start New Exam or Retake Last Exam Below", "success")
+        return redirect(url_for('postutme_exam_page'))
 
-    return render_template('admin_dashboard.html', users=users, inactive_pins=inactive_pins)
+    last_result = ExamResult.query.filter_by(
+        user_id=user.id,
+        exam_mode='POSTUTME'
+    ).order_by(ExamResult.id.desc()).first()
+
+    if session.get('show_postutme_flash'):
+        flash("PIN verified successfully! Welcome to your POSTUTME dashboard.", "success")
+        session.pop('show_postutme_flash', None)
+
+    return render_template('postutme_dashboard.html', result=last_result, user=user)
 
 
-@app.route('/admin-activate-pin', methods=['POST'])
-def activate_pin():
-    if 'admin_logged_in' not in session:
-        return redirect(url_for('admin_login'))
+@app.route('/postutme_exam_page', methods=['GET'])
+def postutme_exam_page():
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Session expired. Please log in again.", "danger")
+        return redirect(url_for('login'))
 
-    pin_id = request.form.get('pin_id')
-    pin = Pin.query.get(pin_id)
-    if pin:
-        pin.is_active = True
-        db.session.commit()
-        flash('PIN activated successfully.')
-    return redirect(url_for('admin_dashboard'))
+    attempt_id = session.get('postutme_attempt_id')
+    if not attempt_id:
+        flash("No active exam session found. Please restart from dashboard.", "danger")
+        return redirect(url_for('postutme_dashboard'))
 
-@app.route('/mark-pin-used', methods=['POST'])
-def mark_pin_as_used():
-    if 'admin_logged_in' not in session:
-        return redirect(url_for('admin_login'))
+    attempt = db.session.get(ExamAttempt, attempt_id)
+    if not attempt or attempt.status != 'ongoing':
+        flash("Invalid or expired attempt. Please restart from dashboard.", "danger")
+        return redirect(url_for('postutme_dashboard'))
 
-    pin_id = request.form.get('pin_id')
-    pin = Pin.query.get(pin_id)
-    if pin:
-        pin.is_used = True
-        db.session.commit()
-    return redirect(url_for('admin_dashboard'))
+    selected_subjects = json.loads(attempt.subjects)
+    questions_json = json.loads(attempt.questions_json)
 
-def generate_pin_for_exam(exam_mode, user_id, device_id):
-    pin_code = generate_unique_pin()
-    new_pin = Pin(
-        user_id=user_id,
-        pin_code=pin_code,
-        is_used=False,
-        device_id=device_id,   # Now required
-        exam_mode=exam_mode,
-        created_at=datetime.utcnow(),
-        is_active=False
+    questions = {}
+
+    for subject in selected_subjects:
+        q_ids = questions_json.get(subject, [])
+        if not q_ids:
+            flash(f"No questions found for {subject}.", "danger")
+            return redirect(url_for('postutme_dashboard'))
+
+        q_list = Question.query.filter(Question.id.in_(q_ids)).all()
+        q_list_sorted = sorted(
+            [q for q in q_list if q.id in q_ids],
+            key=lambda q: q_ids.index(q.id)
+        )
+
+        questions[subject] = [{
+            'id': q.id,
+            'question_text': q.question_text,
+            'question_image': q.question_image,
+            'option_a': q.option_a,
+            'option_b': q.option_b,
+            'option_c': q.option_c,
+            'option_d': q.option_d
+        } for q in q_list_sorted]
+
+    return render_template(
+        'postutme_exam_page.html',
+        questions=questions,
+        subjects=selected_subjects,
+        user=user,
+        reset_local_storage=True
     )
-    db.session.add(new_pin)
-    db.session.commit()
-    return pin_code
 
-@app.route('/admin/send_pin', methods=['GET', 'POST'])
-@admin_login_required
-def admin_send_pin():
-    if request.method == 'POST':
-        username_or_email = request.form.get('username_or_email')
-        selected_modes = request.form.getlist('modes')
-
-        if not username_or_email or not selected_modes:
-            flash("Please provide username/email and select at least one exam mode.", "error")
-            return redirect(url_for('admin_send_pin'))
-
-        user = User.query.filter(
-            (User.email == username_or_email) | (User.username == username_or_email)
-        ).first()
-
+@app.route('/submit_postutme_exam', methods=['POST'])
+def submit_postutme_exam():
+    try:
+        app.logger.info("➡️ SUBMIT_POSTUTME_EXAM CALLED")
+        user = db.session.get(User, session.get('user_id'))
         if not user:
-            flash("User not found. Please check the username or email.", "error")
-            return redirect(url_for('admin_send_pin'))
+            flash("Session expired. Please log in again.", "danger")
+            return redirect(url_for('login'))
 
-        pins_dict = {}
-        for mode in selected_modes:
-            # Pass device_id as None since it is not yet known
-            pins_dict[mode] = generate_pin_for_exam(mode, user.id, None)
+        attempt_id = session.get('postutme_attempt_id')
+        if not attempt_id:
+            flash("No active exam session found.", "danger")
+            return redirect(url_for('postutme_dashboard'))
 
-        try:
-            send_exam_pins_email(user.email, pins_dict)
-            flash("PINs generated and sent successfully!", "success")
-        except Exception as e:
-            flash(f"Failed to send email: {str(e)}", "error")
+        attempt = db.session.get(ExamAttempt, attempt_id)
+        if not attempt or attempt.status != 'ongoing':
+            flash("Exam already submitted or not found.", "warning")
+            return redirect(url_for('postutme_dashboard'))
 
-        return redirect(url_for('admin_dashboard'))
+        selected_subjects = json.loads(attempt.subjects)
+        questions_by_subject = json.loads(attempt.questions_json)
 
-    return render_template('admin_send_pin.html')
-    
-@app.route('/admin-logout')
-def admin_logout():
-    session.pop('admin_logged_in', None)
-    flash("Logged out successfully.")
-    return redirect(url_for('admin_login'))
+        if not selected_subjects:
+            flash("Invalid subject selection.", "danger")
+            return redirect(url_for('postutme_dashboard'))
+
+        scores = {sub.lower(): {'correct': 0, 'total': 10} for sub in selected_subjects}
+        answers_dict = {}
+
+        for key, selected_option in request.form.items():
+            if key.startswith('answers[') and key.endswith(']'):
+                try:
+                    qid = int(key[8:-1])
+                    question = Question.query.get(qid)
+                    if not question:
+                        continue
+                    subj = question.subject.lower()
+                    if subj in scores and question.correct_option == selected_option:
+                        scores[subj]['correct'] += 1
+                    answers_dict[str(qid)] = selected_option
+                except Exception as e:
+                    app.logger.warning(f"Error grading {key}: {e}")
+                    continue
+
+        total_correct = 0
+        for subj, data in scores.items():
+            correct = data['correct']
+            total = data['total']
+            over_100 = round((correct / total) * 100, 2)
+            scores[subj]['over_100'] = over_100
+            total_correct += correct
+
+        total_possible = len(selected_subjects) * 10
+        percentage = round((total_correct / total_possible) * 100, 2)
+
+        attempt.status = 'submitted'
+        attempt.answers_json = json.dumps(answers_dict)
+        attempt.submitted_at = datetime.utcnow()
+        db.session.add(attempt)
+
+        result = ExamResult(
+            user_id=user.id,
+            exam_mode='POSTUTME',
+            score=total_correct,
+            total=total_possible,
+            percentage=percentage,
+            subject_scores=json.dumps(scores),
+            selected_subjects=json.dumps(selected_subjects)
+        )
+        db.session.add(result)
+        db.session.commit()
+
+        session.pop('postutme_subjects', None)
+        session.pop('postutme_answers', None)
+        session.pop('postutme_attempt_id', None)
+
+        flash("Exam submitted successfully. View your result below.", "success")
+        return redirect(url_for('postutme_result', result_id=result.id))
+
+    except Exception as e:
+        app.logger.error(f"Exception in submit_postutme_exam: {e}")
+        flash(f"Error during submission: {e}", "danger")
+        return redirect(url_for('postutme_exam_page'))
+
+@app.route('/retake_postutme_exam', methods=['POST'])
+def retake_postutme_exam():
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Session expired. Please log in again.", "danger")
+        return redirect(url_for('login'))
+
+    # Get the latest submitted POSTUTME attempt
+    previous_attempt = ExamAttempt.query.filter_by(
+        user_id=user.id, exam_mode='POSTUTME', status='submitted'
+    ).order_by(ExamAttempt.id.desc()).first()
+
+    if not previous_attempt:
+        flash("No previous POSTUTME exam found to retake.", "danger")
+        return redirect(url_for('postutme_dashboard'))
+
+    try:
+        previous_subjects = json.loads(previous_attempt.subjects)
+        previous_qids = json.loads(previous_attempt.questions_json)
+
+        app.logger.info(f"[RETAKE] Subjects: {previous_subjects}")
+        app.logger.info(f"[RETAKE] Question IDs: {previous_qids}")
+
+        # Validate the structure
+        if not isinstance(previous_qids, dict) or not all(
+            isinstance(q_list, list) and q_list for q_list in previous_qids.values()
+        ):
+            raise ValueError("Invalid or empty question lists.")
+
+    except (ValueError, TypeError, json.JSONDecodeError) as e:
+        app.logger.error(f"❌ Error decoding previous attempt: {e}")
+        flash("Previous POSTUTME exam data is corrupted or incomplete.", "danger")
+        return redirect(url_for('postutme_dashboard'))
+
+    # Expire any ongoing POSTUTME attempt
+    ongoing = ExamAttempt.query.filter_by(
+        user_id=user.id, exam_mode='POSTUTME', status='ongoing'
+    ).first()
+    if ongoing:
+        ongoing.status = 'expired'
+        db.session.commit()
+
+    # Use constant for duration (in seconds)
+    POSTUTME_DURATION = 1800
+
+    # Create a new retake attempt
+    new_attempt = ExamAttempt(
+        user_id=user.id,
+        exam_mode='POSTUTME',
+        status='ongoing',
+        is_retake=True,
+        subjects=json.dumps(previous_subjects),
+        questions_json=json.dumps(previous_qids),
+        started_at=datetime.utcnow(),
+        time_remaining=POSTUTME_DURATION
+    )
+    db.session.add(new_attempt)
+    db.session.commit()
+
+    # Prepare session
+    session['postutme_subjects'] = previous_subjects
+    session['postutme_attempt_id'] = new_attempt.id
+    session.pop('postutme_answers', None)
+    session.pop('postutme_time_left', None)  # Optional cleanup
+
+    flash("Retake started. Good luck!", "success")
+    return redirect(url_for('postutme_exam_page'))  # Rename if needed
+
+@app.route('/postutme_result/<int:result_id>')
+def postutme_result(result_id):
+    result = ExamResult.query.get_or_404(result_id)
+    user = User.query.get(result.user_id)
+    username = user.username if user else "Anonymous"
+
+    # Get related exam attempt
+    attempt = ExamAttempt.query.filter_by(
+        user_id=result.user_id,
+        exam_mode='postutme',
+        status='submitted'
+    ).order_by(ExamAttempt.id.desc()).first()
+
+    if attempt and attempt.started_at and attempt.submitted_at:
+        duration = attempt.submitted_at - attempt.started_at
+        exam_duration = str(duration).split('.')[0]
+
+        # ✅ Format the exam date here
+        exam_date = attempt.started_at.strftime('%d %B %Y')
+    else:
+        exam_duration = "N/A"
+        exam_date = "Unknown"
+
+    subject_order = json.loads(attempt.subjects or '[]') if attempt else []
+    detailed_scores = {}
+    total_score = 0
+    correct_answers = 0
+    questions_grouped = {}
+
+    if attempt:
+        questions_by_subject = json.loads(attempt.questions_json or '{}')
+        answers = json.loads(attempt.answers_json or '{}')
+
+        all_qids = [qid for qlist in questions_by_subject.values() for qid in qlist]
+        questions = Question.query.filter(Question.id.in_(all_qids)).all()
+        questions_dict = {q.id: q for q in questions}
+
+        for subject in subject_order:
+            subject_cap = subject.capitalize()
+            qids = questions_by_subject.get(subject, [])
+            correct_count = 0
+            questions_grouped[subject_cap] = []
+
+            for idx, qid in enumerate(qids, start=1):
+                q = questions_dict.get(qid)
+                if not q:
+                    continue
+
+                selected = answers.get(str(qid))
+                is_correct = selected and q.correct_option.upper() == selected.upper()
+                if is_correct:
+                    correct_count += 1
+
+                def get_full_option_text(letter):
+                    if not letter:
+                        return "No answer"
+                    letter = letter.upper()
+                    opt = getattr(q, f"option_{letter.lower()}", "")
+                    return f"{letter} - {opt}" if opt else f"{letter} - Unknown"
+
+                questions_grouped[subject_cap].append({
+                    'number': idx,
+                    'text': q.question_text,
+                    'userAnswer': get_full_option_text(selected) if selected else "Unanswered",
+                    'correctAnswer': get_full_option_text(q.correct_option),
+                    'correct': is_correct,
+                    'explanation': q.explanation or "No explanation."
+                })
+
+            score_over_10 = correct_count
+            total_score += score_over_10
+            correct_answers += correct_count
+
+            detailed_scores[subject_cap] = {
+                'correct': correct_count,
+                'total': 10,
+                'over_100': round((correct_count / 10) * 100, 2)
+            }
+
+    percentage = round((total_score / (len(subject_order) * 10)) * 100, 2) if subject_order else 0
+
+    session.pop('postutme_subjects', None)
+    session.pop('postutme_question_ids', None)
+    session.pop('postutme_answers', None)
+
+    return render_template(
+        "postutme_result.html",
+        result=result,
+        username=username,
+        exam_duration=exam_duration,
+        exam_date=exam_date,  # ✅ Don't forget to pass this
+        correct_answers=correct_answers,
+        detailed_scores=detailed_scores,
+        total_score=total_score,
+        total_percentage=percentage,
+        grouped_questions=questions_grouped
+    )
+
+@app.route('/postutme_leaderboard')
+def postutme_leaderboard():
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Session expired. Please log in again.", "danger")
+        return redirect(url_for('login'))
+
+    raw_leaderboard = db.session.query(
+        ExamResult,
+        User.username
+    ).join(User, ExamResult.user_id == User.id).filter(
+        ExamResult.exam_mode == 'POSTUTME'
+    ).order_by(ExamResult.percentage.desc(), ExamResult.created_at.asc()).all()
+
+    leaderboard = []
+    for idx, (result, username) in enumerate(raw_leaderboard, start=1):
+        attempt = ExamAttempt.query.filter_by(
+            user_id=result.user_id,
+            exam_mode='POSTUTME',
+            status='submitted',
+            subjects=result.selected_subjects
+        ).filter(
+            ExamAttempt.submitted_at <= result.created_at
+        ).order_by(ExamAttempt.submitted_at.desc()).first()
+
+        if not attempt or attempt.is_retake:
+            continue
+
+        if attempt.started_at and attempt.submitted_at:
+            duration = attempt.submitted_at - attempt.started_at
+            exam_duration = str(duration).split('.')[0]
+            exam_date = attempt.submitted_at.strftime('%Y-%m-%d %H:%M')
+            duration_seconds = duration.total_seconds()
+        else:
+            exam_duration = "N/A"
+            exam_date = result.created_at.strftime('%Y-%m-%d %H:%M')
+            duration_seconds = float('inf')
+
+        # ✅ Use subject_scores to calculate correct score out of 20 per subject
+        subject_scores = json.loads(result.subject_scores or '{}')
+        raw_correct = sum(s['correct'] for s in subject_scores.values())
+        total_possible = len(subject_scores) * 10
+        percentage = round((raw_correct / total_possible) * 100, 2) if total_possible else 0
+
+        leaderboard.append({
+            'name': username,
+            'score': f"{raw_correct}/{total_possible}",
+            'percentage': percentage,
+            'duration_seconds': duration_seconds,
+            'exam_duration': exam_duration,
+            'date': exam_date
+        })
+
+    # Sort by percentage DESC, then duration ASC
+    sorted_leaderboard = sorted(leaderboard, key=lambda x: (-x['percentage'], x['duration_seconds']))
+
+    # Assign ranks with tie-handling
+    top_20 = []
+    rank = 1
+    prev_entry = None
+
+    for entry in sorted_leaderboard:
+        if prev_entry and entry['percentage'] == prev_entry['percentage'] and entry['duration_seconds'] == prev_entry['duration_seconds']:
+            entry['rank'] = rank
+        else:
+            entry['rank'] = len(top_20) + 1
+            rank = entry['rank']
+        top_20.append(entry)
+        if len(top_20) == 20:
+            break
+        prev_entry = entry
+
+    return render_template('postutme_leaderboard.html', leaderboard=top_20, result=result)
+
+@app.route('/postutme_past_results')
+def postutme_past_results():
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Session expired. Please log in again.", "danger")
+        return redirect(url_for('login'))
+
+    last_results = ExamResult.query.filter_by(user_id=user.id, exam_mode='POSTUTME')\
+                                   .order_by(ExamResult.created_at.desc()).all()
+    result_data = []
+    for result in last_results:
+        scores = json.loads(result.subject_scores or '{}')
+        subjects_with_scores = []
+        total_raw_score = 0
+        total_possible = 0
+
+        for subject, data in scores.items():
+            subject_name = subject.capitalize()
+            subject_score = round(data.get('correct', 0), 2)
+            score_over_100 = round(data.get('over_100', 0), 2)
+            subjects_with_scores.append(f"{subject_name} - {score_over_100}")
+            total_raw_score += subject_score
+            total_possible += 10  # Each subject is over 10
+
+        subjects_display = ', '.join(subjects_with_scores) if subjects_with_scores else "No subjects"
+
+        # Calculate accurate percentage
+        percentage = round((total_raw_score / total_possible) * 100, 2) if total_possible else 0
+
+        attempt = ExamAttempt.query.filter_by(
+            user_id=user.id,
+            exam_mode='POSTUTME',
+            status='submitted',
+            subjects=result.selected_subjects
+        ).filter(
+            ExamAttempt.submitted_at <= result.created_at
+        ).order_by(ExamAttempt.submitted_at.desc()).first()
+
+        if attempt and attempt.started_at and attempt.submitted_at:
+            duration = attempt.submitted_at - attempt.started_at
+            exam_duration = str(duration).split('.')[0]
+            exam_date = attempt.submitted_at.strftime('%d %B %Y')
+        else:
+            exam_duration = "N/A"
+            exam_date = result.created_at.strftime('%d %B %Y')
+
+        result_data.append({
+            'subject': subjects_display,
+            'score': total_raw_score,
+            'total': total_possible,
+            'percentage': percentage,
+            'date': exam_date,
+            'time_spent': exam_duration
+        })
+
+    return render_template('postutme_past_results.html', result_data=result_data, result=result if last_results else None)
 
 if __name__ == '__main__':
     threading.Thread(target=clean_unverified_users, daemon=True).start()

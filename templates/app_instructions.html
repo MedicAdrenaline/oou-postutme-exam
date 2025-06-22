@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>App Info - SmartPrep</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: 'Segoe UI', sans-serif;
+      transition: background-color 0.4s, color 0.4s;
+    }
+
+    .dark-mode {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+
+    .info-container {
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 30px;
+      background-color: white;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.4s, color 0.4s;
+    }
+
+    .dark-mode .info-container {
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+    }
+
+    .info-container h2 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: #28a745;
+    }
+
+    .dark-mode .info-container h2 {
+      color: #4cd964;
+    }
+
+    .info-container h5 {
+      margin-top: 25px;
+      color: #343a40;
+    }
+
+    .dark-mode .info-container h5 {
+      color: #cfcfcf;
+    }
+
+    .info-container ul {
+      padding-left: 20px;
+    }
+
+    .info-container ul li {
+      margin-bottom: 10px;
+      line-height: 1.7;
+    }
+
+    .note {
+      background-color: #fff3cd;
+      padding: 10px 15px;
+      border-left: 5px solid #ffc107;
+      margin-top: 20px;
+      font-style: italic;
+    }
+
+    .dark-mode .note {
+      background-color: #4d4530;
+      border-left: 5px solid #fcd34d;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: flex-end;
+      max-width: 900px;
+      margin: 20px auto 0;
+      padding: 0 10px;
+    }
+
+    .btn-toggle {
+      background-color: #000;
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+    
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
+</div>
+<div class="mt-3 container" style="width: 18%;">
+    <a href="/" class="btn btn-secondary w-100">Back to Welcome page</a>
+</div>
+
+  <div class="info-container">
+    <h2>App Info(Read Me)</h2>
+
+    <h5>🧠 Adrena-AI</h5>
+    <ul>
+      <li>Make use of this AI for explanations, note making, personal assistance etc... also beware of the words yu use with the AI, as you might get blocked if any unreasonable things are detected</li>
+      <li>The AI is still under development, and it'll be available in full version(versatile) soon, stay tuned</li>
+      <li>Note: Some of the responses might not be accurate, but guess what? The full version is loading...</li>
+    </ul>
+
+    <h5>🔐 How to Register, Verify account, login and Reset password</h5>
+    <ul>
+      <li>Click on the <strong>Register</strong> button on the welcome page.</li>
+      <li>Provide your username, email, and password.</li>
+      <li>Verify your email using the OTP sent to your inbox (also, check spam folder if email is not received).</li>
+      <li><strong>Login</strong> to the Dashboard with your verified Email and Password</li>
+      <li>You can easily reset your password on the login page if you forget your password </li>
+    </ul>
+
+    <h5>💳 The Dashboard</h5>
+    <ul>
+      <li>Go to your dashboard after registration.</li>
+      <li>Click <strong>GENERATE PIN</strong>, Choose your payment method (Paystack, Pay directly into bank account and contact Admin
+        for pin activation, or contact admin on the page for other payment options).</li>
+      <li>For Paystack, click on the checkbox to proceed and pay exactly the amount displayed, pin will be sent to email automatically.</li>
+      <li>For bank Payment, carefuly enter the account details and make payments of the exact amount then send payment proof to admin for pin activation(Recommended).</li>
+      <li>Then come back to the page and click on <strong>ENTER PIN</strong>, to enter your generated PIN</li>
+      <li>kindly join the groups on the dashbord for admission updates, our tutorial groups for intensive brainstorming, tutorials and proper mentorship</li>
+    </ul>
+
+    <h5>📚 Enter Pin, & Exam Page</h5>
+    <ul>
+      
+      <li>Carefully enter the pin to access exam(you'll, be blocked for 24hrs after 5 incorrect attempts), the pin will be bound to your device and can be used on this device only, contact admin if you change device.</li>
+      <li>You can switch between Light/Dark mode using the toggle botton</li>
+      <li>English, Mathematics, Chemistry, Physics, Biology, Agriculture, Lit-in-Eng, Government, CRS, IRK, 
+        Civic Education, Geography, Economics, General Knowledge, etc...(Nearly all subjects are available)</li>
+      <li>English is compulsory, you can select max of 4 more subjects which should be your utme subject combination(English + 3 others), and General Knowledge is optional as OOU always strictly set questions from utme combination.</li>
+      <li>Ensure to submit exam before leaving the exam page, also submit exam only once as second submission will clear your atempted questions, answers and explanations on the result page.</li>
+      <li>Use the retake last exam botton to retake the last attempted exam and view improvement(Note: Always submit eaxm for easy retake)</li>
+      <li>You can easily view you last exam results and past exam results, as well as the leaderboard.</li>
+      <li>And lastly, their will be awards for the top ... on the leaderboard</li>
+    </ul>
+
+    <h5>🕒 Time & Grading</h5>
+    <ul>
+      <li>This is a 30mins exam, and it's adivisable to select at least 3 more subject with English for proper training, and time conscious</li>
+      <li>Scores are calculated based on the numbers of subject choosen, also percentage are displayed</li>
+      <li>View results, performance chart, exaplanations and you can retake the same set of questions to test yourself</li>
+      <li>leaderboarddisplay top scorer in the PUTME exams, only for new exams(retakes don't count on the leaderboard)</li>
+      <li>And lastly, their will be awards for the top ... on the leaderboard</li>
+    </ul>
+
+    <div class="note">
+      Do well to always update the app almost every 2weeks, for updated questions...
+    </div>
+  </div>
+
+  <script>
+    function toggleMode() {
+  const isDark = document.body.classList.toggle("dark-mode");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+}
+window.onload = () => {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+  }
+};
+  </script>
+
+</body>
+</html>

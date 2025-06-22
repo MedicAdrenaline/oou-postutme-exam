@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OOU Courses & Aggregates</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #111111;
+      --card: #f0f0f0;
+      --highlight: #0077ff;
+      --border: #ccc;
+    }
+
+    body.dark-mode {
+      --bg: #121212;
+      --text: #f5f5f5;
+      --card: #1e1e1e;
+      --highlight: #00bfff;
+      --border: #333;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background-color: var(--card);
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--highlight);
+      margin-bottom: 10px;
+    }
+
+    .subheading {
+      text-align: center;
+      color: var(--text);
+      margin-bottom: 25px;
+      font-size: 15px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .search-box {
+      flex-grow: 1;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+
+    .toggle-button {
+      background-color: var(--highlight);
+      color: #fff;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+
+    table {
+      width: 90%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    th {
+      background-color: var(--highlight);
+      color: #fff;
+    }
+
+    tr:nth-child(even) {
+      background-color: rgba(0, 0, 0, 0.03);
+    }
+
+    .note {
+      margin-top: 20px;
+      font-size: 14px;
+      padding: 10px;
+      background-color: var(--bg);
+      border-left: 5px solid var(--highlight);
+      color: var(--text);
+    }
+
+    @media screen and (max-width: 600px) {
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .toggle-button {
+        margin-top: 5px;
+        margin-left: 0;
+      }
+    }
+
+    .dark-mode {
+      background-color: #121212;
+      color: #ffffff;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+    }
+
+    .search-box input {
+      padding: 8px;
+      width: 60%;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>OOU Courses & Admission Aggregates</h1>
+  <p class="subheading">Quickly find courses and view their cut-off scores.</p>
+
+  <div class="controls">
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search courses or faculty...">
+   <div class="toggle-container text-end p-3" style="font-size: larger;">
+  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
+  <a href="/" class="btn btn-secondary w-100" style="color: #00bfff; font-weight: bolder;" >Back to Welcome page</a>
+</div>
+
+  <table id="coursesTable">
+    <thead>
+      <tr>
+        <th>Faculty</th>
+        <th>Course</th>
+        <th>Aggregate</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Faculty of Engineering -->
+      <tr><td>Engineering</td><td>Agricultural Engineering</td><td>60+</td></tr>
+      <tr><td>Engineering</td><td>Civil Engineering</td><td>65+</td></tr>
+      <tr><td>Engineering</td><td>Computer Engineering</td><td>68+</td></tr>
+      <tr><td>Engineering</td><td>Electrical/Electronics Engineering</td><td>66+</td></tr>
+      <tr><td>Engineering</td><td>Mechanical Engineering</td><td>65+</td></tr>
+
+      <!-- Faculty of Law -->
+      <tr><td>Law</td><td>Civil Law</td><td>70+</td></tr>
+      <tr><td>Law</td><td>Law</td><td>70+</td></tr>
+
+      <!-- Faculty of Science -->
+      <tr><td>Science</td><td>Anatomy</td><td>62+</td></tr>
+      <tr><td>Science</td><td>Applied Zoology</td><td>55+</td></tr>
+      <tr><td>Science</td><td>Biochemistry</td><td>65+</td></tr>
+      <tr><td>Science</td><td>Chemical Sciences</td><td>60+</td></tr>
+      <tr><td>Science</td><td>Chemistry</td><td>58+</td></tr>
+      <tr><td>Science</td><td>Computer Science</td><td>68+</td></tr>
+      <tr><td>Science</td><td>Geology</td><td>55+</td></tr>
+      <tr><td>Science</td><td>Industrial Chemistry</td><td>60+</td></tr>
+      <tr><td>Science</td><td>Mathematics</td><td>55+</td></tr>
+      <tr><td>Science</td><td>Microbiology</td><td>60+</td></tr>
+      <tr><td>Science</td><td>Physics</td><td>55+</td></tr>
+      <tr><td>Science</td><td>Physiology</td><td>60+</td></tr>
+      <tr><td>Science</td><td>Plant Science</td><td>52+</td></tr>
+      <tr><td>Science</td><td>Statistics</td><td>55+</td></tr>
+
+      <!-- Faculty of Social Sciences -->
+      <tr><td>Social Sciences</td><td>Economics</td><td>62+</td></tr>
+      <tr><td>Social Sciences</td><td>Geography</td><td>55+</td></tr>
+      <tr><td>Social Sciences</td><td>Mass Communication</td><td>65+</td></tr>
+      <tr><td>Social Sciences</td><td>Political Science</td><td>60+</td></tr>
+      <tr><td>Social Sciences</td><td>Psychology</td><td>58+</td></tr>
+      <tr><td>Social Sciences</td><td>Sociology</td><td>58+</td></tr>
+
+      <!-- Additional Examples -->
+      <tr><td>Medicine</td><td>MBBS</td><td>75+</td></tr>
+      <tr><td>Pharmacy</td><td>Pharmacy</td><td>70+</td></tr>
+      <tr><td>Arts</td><td>English</td><td>50+</td></tr>
+      <tr><td>Education</td><td>Biology Education</td><td>45+</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <strong>Note:</strong> Aggregates listed are estimates just to give you a range or a hint of what you should have 
+    and may vary, as cut off marks are calculated based on the number of students and the score of the students that 
+    put in for that particular course, also depends on the school quota. It's adivisable to always use the aggregate calculator
+    to calculate your aggregate(Jamb + Any of your PUTME score from the app) to know your level, always check our website for latest Info. 
+</div>
+<script>
+  function toggleMode() {
+  const isDark = document.body.classList.toggle("dark-mode");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+}
+window.onload = () => {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+  }
+};
+
+  const searchInput = document.getElementById("searchInput");
+  const table = document.getElementById("coursesTable").getElementsByTagName("tbody")[0];
+
+  searchInput.addEventListener("keyup", function () {
+    const filter = searchInput.value.toLowerCase();
+    const rows = table.getElementsByTagName("tr");
+
+    Array.from(rows).forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(filter) ? "" : "none";
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LEADERBOARD</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+    rel="stylesheet"
+  />
+  <style>
+    /* Light/Dark Theme Transitions */
+body {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Dark Mode Body */
+.dark-mode {
+  background-color: #121212 !important;
+  color: #e0e0e0 !important;
+}
+
+/* Example for sections/containers */
+.dark-mode .your-container-class {
+  background-color: #1e1e1e !important;
+  color: #e0e0e0 !important;
+}
+
+/* Button Styles */
+.toggle-container button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+.toggle-container button:hover {
+  background-color: #0056b3;
+}
+    body {
+      background: #f8f9fa;
+    }
+    .correct-answer {
+      color: #198754;
+      font-weight: 600;
+    }
+    .incorrect-answer {
+      color: #dc3545;
+      font-weight: 600;
+    }
+    .unanswered {
+      color: #6c757d;
+      font-style: italic;
+    }
+    .card {
+      box-shadow: 0 0.25rem 0.75rem rgb(0 0 0 / 0.1);
+      border-radius: 0.75rem;
+    }
+    .grade-badge {
+      font-size: 1.25rem;
+      font-weight: 700;
+      padding: 0.4rem 0.75rem;
+      border-radius: 0.5rem;
+    }
+    .grade-A { background: #198754; color: white; }
+    .grade-B { background: #0d6efd; color: white; }
+    .grade-C { background: #ffc107; color: black; }
+    .grade-D { background: #fd7e14; color: white; }
+    .grade-E { background: #6c757d; color: white; }
+    .grade-F { background: #dc3545; color: white; }
+  </style>
+</head>
+<body>
+  <div class="card p-4 mb-5 bg-white container mt-5">
+    <h3 class="mb-4 text-center">
+      WELCOME TO LEADERBOARD 🥇🏆
+      <i class="bi bi-trophy-fill text-warning"></i>
+    </h3>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Rank</th>
+            <th scope="col">Candidate</th>
+            <th scope="col">Score</th>
+            <th scope="col">Percentage</th>
+            <th scope="col">Time Spent</th>
+            <th scope="col">Date</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+          {% for entry in leaderboard %}
+<tr>
+  <td>
+    {% if entry.rank == 1 %}
+      🥇 Gold ({{ entry.rank }})
+    {% elif entry.rank == 2 %}
+      🥈 Silver ({{ entry.rank }})
+    {% elif entry.rank == 3 %}
+      🥉 Bronze ({{ entry.rank }})
+    {% else %}
+      {{ entry.rank }}
+    {% endif %}
+  </td>
+  <td>{{ entry.name }}</td>
+  <td>{{ entry.score }}</td>
+  <td>{{ entry.percentage }}%</td>
+  <td>{{ entry.exam_duration }}</td>
+  <td>{{ entry.date }}</td>
+</tr>
+{% else %}
+<tr>
+  <td colspan="5" class="text-center text-muted">No leaderboard data available.</td>
+</tr>
+{% endfor %}
+        </tbody>
+      </table>
+    </div>
+     <div class="text-center mt-5">
+        {% if result %}
+    <a href="{{ url_for('postutme_result', result_id=result.id) }}" class="btn btn-info">📊 ← Back to Result Page</a>
+    {% endif %}
+    <script>
+  function toggleMode() {
+  const isDark = document.body.classList.toggle("dark-mode");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+}
+window.onload = () => {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+  }
+};
+</script>
+    </div>
+  </div>
+   <div class="toggle-container text-end p-3">
+  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
+</div>
+  </div>
+    <div class="text-center text-muted big mb-3">Developed by Medic Adrenaline</div>
+  </div>
+</body>
+</html>

@@ -129,6 +129,10 @@ celerybeat.pid
 
 # Environments
 .env
+config.py
+seed.py
+create_tables.py
+create_admins.py
 .venv
 env/
 venv/
@@ -151,11 +155,11 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# Pyre type checker
+# Pyre mode checker
 .pyre/
 
-# pytype static type analyzer
-.pytype/
+# pymode static mode analyzer
+.pymode/
 
 # Cython debug symbols
 cython_debug/

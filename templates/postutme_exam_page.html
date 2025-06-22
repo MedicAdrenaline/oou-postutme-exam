@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>POSTUTME EXAM - Medic Adrenaline</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        /* Light/Dark Theme Transitions */
+body {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Dark Mode Body */
+.dark-mode {
+  background-color: #121212 !important;
+  color: #e0e0e0 !important;
+}
+
+/* Example for sections/containers */
+.dark-mode .your-container-class {
+  background-color: #1e1e1e !important;
+  color: #e0e0e0 !important;
+}
+
+/* Button Styles */
+.toggle-container button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+.toggle-container button:hover {
+  background-color: #0056b3;
+}
+        body {
+    background-color: #f8f9fa;
+    padding: 20px;
+}
+.timer {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: red;
+    text-align: right;
+    margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    z-index: 1000;
+    padding: 10px;
+}
+.subject-nav button {
+    margin: 5px;
+    border-radius: 30px;
+    font-weight: 600;
+    transition: background-color 0.3s, color 0.3s;
+}
+.subject-nav button.active,
+.subject-nav button:hover {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+.question {
+    display: none;
+}
+/* Show only active question */
+.question.active {
+    display: block;
+}
+/* Container for prev/next + numbered buttons */
+.navigation-container {
+    margin-top: 20px;
+}
+.btn-nav-group {
+    display: flex;
+    justify-content: flex-start;  /* Align left */
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.btn-nav-group button {
+    min-width: 100px;
+    font-weight: 600;
+    border-radius: 30px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    transition: background-color 0.3s ease;
+}
+.btn-nav-group button:hover {
+    background-color: #000000; /* Very dark on hover */
+    cursor: pointer;
+}
+.numbered-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+.numbered-buttons button {
+    width: 42px;
+    height: 42px;
+    border-radius: 20;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+    box-shadow: 0 0 5px rgb(0 0 0 / 0.1);
+}
+.numbered-buttons button.answered {
+    background-color: #28a745;
+    color: white;
+}
+.numbered-buttons button.unanswered {
+    background-color: #dc3545;
+    color: white;
+}
+.numbered-buttons button:hover {
+    filter: brightness(85%);
+}
+/* Submit button style */
+button[type="submit"] {
+    width: auto; /* smaller button */
+    padding: 6px 20px;
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 20px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    box-shadow: 0 4px 10px rgb(40 167 69 / 0.5);
+    transition: background-color 0.3s ease;
+    cursor: pointer;
+}
+button[type="submit"]:hover {
+    background-color: #218838;
+    box-shadow: 0 6px 14px rgb(33 136 56 / 0.7);
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="timer" id="timer">30:00</div>
+        <h3>POSTUTME EXAM {{ username }}</h3>
+        <div class="subject-nav mb-3">
+            {% for subject in subjects %}
+            <button type="button" class="btn btn-outline-primary subject-btn" data-subject="{{ subject }}">{{ subject }}</button>
+            {% endfor %}
+        </div>
+
+        <form id="examForm" action="{{ url_for('submit_postutme_exam') }}" method="POST" autocomplete="off">
+            {% for subject, subject_questions in questions.items() %}
+            <div class="subject-section" data-subject="{{ subject }}" style="display: none;">
+                <h4 class="mb-3">{{ subject }}</h4>
+                {% for q in subject_questions %}
+                <div class="question" data-question-index="{{ loop.index0 }}">
+                    <p><strong>Q{{ loop.index }}.</strong> {{ q.question_text }}</p>
+                    {% if q.question_image %}
+                    <img src="{{ url_for('static', filename='images/' ~ q.question_image) }}" class="img-fluid mb-2" />
+                    {% endif %}
+                    {% for option in ['A', 'B', 'C', 'D'] %}
+                    <div class="form-check">
+                        <input
+                            class="form-check-input"
+                            type="radio"
+                            name="answers[{{ q.id }}]"
+                            value="{{ option }}"
+                            data-qid="{{ q.id }}"
+                            data-subject="{{ subject }}"
+                            id="q{{ q.id }}-option{{ option }}"
+                                autocomplete="off"
+                        />
+                        <label class="form-check-label" for="q{{ q.id }}-option{{ option }}">
+                            {{ option }}. {{ q['option_' ~ option.lower()] }}
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+
+                <div class="navigation-container">
+                    <div class="btn-nav-group">
+                        <button type="button" class="btn btn-secondary prev-btn">Previous</button>
+                        <button type="button" class="btn btn-secondary next-btn">Next</button>
+                    </div>
+                    <div class="numbered-buttons" id="buttons-{{ subject }}">
+                        {% for q in subject_questions %}
+                        <button type="button" class="btn unanswered nav-btn" data-index="{{ loop.index0 }}">{{ loop.index }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-success" id="submitBtn">Submit Exam</button>
+            </div>
+        </form>
+    </div>
+
+   <script>
+    const subjectSections = document.querySelectorAll('.subject-section');
+    const subjectButtons = document.querySelectorAll('.subject-btn');
+    const timerDisplay = document.getElementById('timer');
+    const form = document.getElementById("examForm");
+    const submitBtn = document.getElementById("submitBtn");
+
+    let lastQuestionIndexPerSubject = JSON.parse(localStorage.getItem('postutmeLastQuestionIndexPerSubject')) || {};
+    let currentSubject = null;
+    let currentQuestionIndex = 0;
+    let formSubmitting = false;
+
+    function saveToLocalStorage() {
+        const formData = new FormData(form);
+        const answersObj = {};
+        for (const [key, value] of formData.entries()) {
+            answersObj[key] = value;
+        }
+        localStorage.setItem('postutmeAnswers', JSON.stringify(answersObj));
+        localStorage.setItem('postutmeTimeLeft', timeLeft);
+        localStorage.setItem('postutmeCurrentSubject', currentSubject);
+        localStorage.setItem('postutmeLastQuestionIndexPerSubject', JSON.stringify(lastQuestionIndexPerSubject));
+    }
+
+    function restoreFromLocalStorage() {
+        const savedAnswers = JSON.parse(localStorage.getItem('postutmeAnswers')) || {};
+        for (const [name, value] of Object.entries(savedAnswers)) {
+            const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+            if (radio) radio.checked = true;
+        }
+        const savedSubject = localStorage.getItem('postutmeCurrentSubject');
+        if (savedSubject) currentSubject = savedSubject;
+        lastQuestionIndexPerSubject = JSON.parse(localStorage.getItem('postutmeLastQuestionIndexPerSubject')) || {};
+    }
+
+    function updateButtonStates() {
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            const section = btn.closest('.subject-section');
+            const idx = btn.dataset.index;
+            const inputName = section.querySelectorAll('.question')[idx].querySelector('input[type="radio"]').name;
+            const selected = document.querySelector(`input[name="${inputName}"]:checked`);
+            btn.classList.toggle('answered', !!selected);
+            btn.classList.toggle('unanswered', !selected);
+        });
+    }
+
+    function updateQuestions() {
+        const currentSection = document.querySelector(`.subject-section[data-subject="${currentSubject}"]`);
+        const questions = currentSection.querySelectorAll('.question');
+        questions.forEach((q, idx) => q.classList.toggle('active', idx === currentQuestionIndex));
+
+        const navButtons = currentSection.querySelectorAll('.nav-btn');
+        navButtons.forEach((btn, idx) => btn.classList.toggle('active', idx === currentQuestionIndex));
+
+        saveToLocalStorage();
+    }
+
+    function highlightActiveSubjectButton() {
+        subjectButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.subject === currentSubject);
+        });
+    }
+
+    function showSubject(subject) {
+        if (currentSubject !== null) {
+            lastQuestionIndexPerSubject[currentSubject] = currentQuestionIndex;
+        }
+
+        subjectSections.forEach(sec => sec.style.display = (sec.dataset.subject === subject) ? 'block' : 'none');
+        currentSubject = subject;
+
+        const currentSection = document.querySelector(`.subject-section[data-subject="${subject}"]`);
+        const questionCount = currentSection.querySelectorAll('.question').length;
+        let lastIndex = lastQuestionIndexPerSubject[subject];
+        if (lastIndex === undefined || lastIndex >= questionCount) lastIndex = 0;
+        currentQuestionIndex = lastIndex;
+
+        updateQuestions();
+        updateButtonStates();
+        highlightActiveSubjectButton();
+        saveToLocalStorage();
+    }
+
+    subjectButtons.forEach(btn =>
+        btn.addEventListener('click', () => showSubject(btn.dataset.subject))
+    );
+
+    document.querySelectorAll('.next-btn').forEach(btn =>
+        btn.addEventListener('click', () => {
+            const questions = document.querySelector(`.subject-section[data-subject="${currentSubject}"]`).querySelectorAll('.question');
+            if (currentQuestionIndex < questions.length - 1) {
+                currentQuestionIndex++;
+                updateQuestions();
+                saveToLocalStorage();
+            }
+        })
+    );
+
+    document.querySelectorAll('.prev-btn').forEach(btn =>
+        btn.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                updateQuestions();
+                saveToLocalStorage();
+            }
+        })
+    );
+
+    document.querySelectorAll('input[type="radio"]').forEach(radio =>
+        radio.addEventListener('change', () => {
+            updateButtonStates();
+            saveToLocalStorage();
+        })
+    );
+
+    document.querySelectorAll('.nav-btn').forEach(btn =>
+        btn.addEventListener('click', () => {
+            currentQuestionIndex = parseInt(btn.dataset.index);
+            updateQuestions();
+            saveToLocalStorage();
+        })
+    );
+    // Timer countdown
+    let timeLeft = parseInt(localStorage.getItem('postutmeTimeLeft')) || 30 * 60;
+
+    function updateTimer() {
+        const hrs = String(Math.floor(timeLeft / 3600)).padStart(2, '0');
+        const mins = String(Math.floor((timeLeft % 3600) / 60)).padStart(2, '0');
+        const secs = String(timeLeft % 60).padStart(2, '0');
+        timerDisplay.textContent = `${hrs}:${mins}:${secs}`;
+        if (timeLeft === 300) alert('You have 5 minutes left!');
+        if (timeLeft <= 0) {
+            alert('Time is up! Your exam will be submitted automatically.');
+            form.submit();
+        } else {
+            timeLeft--;
+            saveToLocalStorage();
+            setTimeout(updateTimer, 1000);
+        }
+    }
+
+    // On page load
+    restoreFromLocalStorage();
+
+    if (!currentSubject && subjectButtons.length > 0) {
+        currentSubject = subjectButtons[0].dataset.subject;
+        currentQuestionIndex = 0;
+    }
+    showSubject(currentSubject);
+    updateButtonStates();
+    updateTimer();
+
+    if (localStorage.getItem('postutmeStarted') !== 'true') {
+        localStorage.removeItem('postutmeAnswers');
+        localStorage.removeItem('postutmeTimeLeft');
+        localStorage.removeItem('postutmeCurrentSubject');
+        localStorage.removeItem('postutmeLastQuestionIndexPerSubject');
+        localStorage.setItem('postutmeStarted', 'true');
+    }
+
+    // Form submit
+    form.addEventListener("submit", () => {
+        localStorage.removeItem('postutmeAnswers');
+        localStorage.removeItem('postutmeTimeLeft');
+        localStorage.removeItem('postutmeCurrentSubject');
+        localStorage.removeItem('postutmeLastQuestionIndexPerSubject');
+        localStorage.removeItem('postutmeStarted');
+    });
+
+    // Prevent backspace from leaving the page
+    window.addEventListener("keydown", function (e) {
+        if (e.key === "Backspace" && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+            e.preventDefault();
+        }
+    });
+
+    // Confirm navigation
+    window.addEventListener("beforeunload", function (e) {
+        if (!formSubmitting) {
+            e.preventDefault();
+            e.returnValue = "Are you sure you want to leave the exam? Kindly submit before leaving the page 🤪. You can come back and view your result and retake last submitted exam! 📊";
+        }
+    });
+
+    document.querySelectorAll("a").forEach(link => {
+        link.addEventListener("click", () => {
+            formSubmitting = true;
+        });
+    });
+
+    submitBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (confirm("Are you sure you want to submit? You can only submit once. If you re-visit this page after submission to re-submit, this will clear your attempted questions and explanation on the result page ✍️")) {
+            formSubmitting = true;
+            setTimeout(() => form.submit(), 100);
+        }
+    });
+
+    // Prevent back navigation
+    history.pushState(null, null, location.href);
+    window.onpopstate = function () {
+        if (!formSubmitting && confirm("Are you sure you want to leave this page? Kindly submit before leaving 🤪,  You can come back and view your result and retake last submitted exam! 📊")) {
+            history.back();
+        } else {
+            history.pushState(null, null, location.href);
+        }
+    };
+    function toggleMode() {
+  const isDark = document.body.classList.toggle("dark-mode");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+}
+window.onload = () => {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+  }
+};   
+</script>
+<div class="toggle-container text-end p-3">
+  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
+</div>
+</div>
+    <div class="text-center text-muted big mb-3">Developed by Medic Adrenaline</div>
+  </div>
+</body>
+</html>

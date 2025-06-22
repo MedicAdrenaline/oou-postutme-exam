@@ -1,32 +1,133 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to Adrenaline's Exam Practice Platform</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-    <!-- Header Section -->
-    <header class="welcome-header">
-        <div class="header-container">
-            <!-- Your Beautiful Photo -->
-            <img src="{{ url_for('static', filename='images/medic_adrenaline.jpg') }}" alt="Medic Adrenaline" class="profile-img">
-            
-            <h1>Welcome to Adrenaline's Exam Practice Platform</h1>
-            <p class="inspiring-quote">"Success doesn’t come from what you do occasionally, it comes from what you do consistently."</p>
-        </div>
-    </header>
+{% extends "base.html" %}
 
-    <!-- Register / Login Buttons -->
-    <div class="auth-buttons">
-        <a href="{{ url_for('register') }}" class="btn">Register</a>
-        <a href="{{ url_for('login') }}" class="btn">Login</a>
+{% block title %}WELCOME{% endblock %}
+
+{% block content %}
+<div class="welcome-container">
+    <!-- Logo / Profile Image -->
+    <div class="header-container text-center">
+        <img src="{{ url_for('static', filename='images/oou_logo.png') }}" alt="Logo" class="profile-img">
     </div>
 
-    <!-- Footer Section -->
-    <footer>
-        <p>Developed by Medic Adrenaline</p>
-    </footer>
-</body>
-</html>
+    <!-- Animated Welcome Text -->
+    <div id="welcome-text-container">
+        <span id="welcome-text" class="welcome-text"></span><span class="cursor">|</span>
+    </div>
+
+    <!-- Buttons -->
+    <div class="auth-buttons text-center">
+        <a href="{{ url_for('register') }}" class="btn" style="color: white; background-color: black; 
+        font-size: x-large; font-weight: bold; position: fixed; top: 72%; left: 40%">Register</a>
+        <a href="{{ url_for('login') }}" class="btn" style="color: white; position: fixed; background-color: black;
+        font-size: x-large; font-weight: bold; top: 72%; left: 55%;">Login</a>
+    </div>
+</div>
+
+<!-- Instruction Links -->
+ <div class="form-container">
+    <a href="/app-instructions" style="position: fixed; color: black; text-decoration: underline; font-size: x-large; 
+    font-weight: bolder; top: 18%; right: 5%;">App Info(Read me)</a>
+</div>
+<div class="form-container">
+    <a href="/postutme-instructions" style="position: fixed; color: black; text-decoration: underline; font-size: x-large; 
+    font-weight: bolder; top: 25%; right: 5%;">OOU PUTME Instructions</a>
+</div>
+<div class="form-container">
+    <a href="/courses-cutoff" style="position: fixed; color: black; text-decoration: underline; font-size: x-large; 
+    font-weight: bolder; top: 32%; right: 5%;">Courses & cut off</a>
+</div>
+<div class="form-container">
+  <a href="/aggregate-calculator" style="position: fixed; top: 39%; right: 5%; z-index: 9999; color: black; text-decoration: underline; font-size: x-large; font-weight: bolder;">Aggregate Calculator</a>
+</div>
+
+<div class="form-container">
+  <a href="/https://chat.whatsapp.com/FmlWgWaqhW8E47ETK8oIwQ" style="position: fixed; top: 46%; right: 5%; z-index: 9999; color: black; text-decoration: underline; font-size: x-large; font-weight: bolder;">Adrena AI</a>
+</div>
+
+<div class="form-container">
+  <a href="https://chat.whatsapp.com/FmlWgWaqhW8E47ETK8oIwQ", style="position: fixed; top: 53%; right: 5%; z-index: 9999; color: black; text-decoration: underline; font-size: x-large; font-weight: bolder;">Admission Updates</a>
+</div>
+
+<div class="donate-pq">
+  <a href="donate-pq", style="position: fixed; top: 60%; right: 5%; z-index: 9999; color: black; text-decoration: underline; font-size: x-large; font-weight: bolder;">Donate PQ</a>
+</div>
+
+
+<!-- Styles for Animated Text -->
+<style>
+  
+  #welcome-text-container {
+    position: fixed;
+    text-align: center;
+    font-size: 40px;
+    font-style: italic;
+    font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+    font-weight: bolder;
+    color: black;
+    margin-top: 20px;
+    min-height: 40px;
+    width: 65%;
+    top: 30%;
+  }
+
+  .cursor {
+    display: inline-block;
+    color: black;
+    font-weight: bolder;
+    animation: blink 0.7s steps(2, start) infinite;
+  }
+
+  @keyframes blink {
+    0%   { opacity: 1; }
+    50%  { opacity: 0; }
+    100% { opacity: 1; }
+  }
+</style>
+
+<!-- Script for Typing Animation and Typing Sound -->
+<audio id="typing-sound" src="{{ url_for('static', filename='sounds/typing.mp3') }}"></audio>
+<script>
+  const messages = [
+    "Dear Undergraduate 🤗🤗, Welcome to Adrena Exam Volta",
+    "I'm Adrena AI ask me anything...🤔",
+    "oooh no question?",
+    "but wait I have a question, you murdered utme🤔?...............",
+    "Really😮😮😮.....and you're better than many",
+    "Ok, here is what next, PUTME...PUTME...PUTME...", 
+    "but do you even know how you can easily smash 95% in this?",
+    "Oh, nooo.. yoo Adrena got you covered",
+    "Kindly read the OOU PUTME instructions above, as well as the app info for easy use",
+    "Also make use of the Aggregate calculator, where you enter your jamb score and your postutme score(after every exam here) and it shows you your aggregate",
+    "Now get in, Practice. Progress. Excel, Learn smart at your pace...",
+  ];
+
+  const textElement = document.getElementById("welcome-text");
+  const typingSound = document.getElementById("typing-sound");
+  let msgIndex = 0;
+
+  function typeMessage(text, charIndex = 0) {
+    if (charIndex < text.length) {
+      textElement.textContent += text.charAt(charIndex);
+      
+      // Play sound (restart from beginning each time)
+      typingSound.currentTime = 0;
+      typingSound.play();
+
+      setTimeout(() => typeMessage(text, charIndex + 1), 150);
+    } else {
+      setTimeout(() => {
+        textElement.style.opacity = 0;
+        setTimeout(() => {
+          textElement.textContent = "";
+          textElement.style.opacity = 1;
+          msgIndex = (msgIndex + 1) % messages.length;
+          typeMessage(messages[msgIndex]);
+        }, 500);
+      }, 2000);
+    }
+  }
+
+  // Start animation
+  typeMessage(messages[msgIndex]);
+</script>
+{% endblock %}

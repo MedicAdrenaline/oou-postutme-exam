@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Postutme Past Results</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Light/Dark Theme Transitions */
+body {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Dark Mode Body */
+.dark-mode {
+  background-color: #121212 !important;
+  color: #e0e0e0 !important;
+}
+
+/* Example for sections/containers */
+.dark-mode .your-container-class {
+  background-color: #1e1e1e !important;
+  color: #e0e0e0 !important;
+}
+
+/* Button Styles */
+.toggle-container button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+.toggle-container button:hover {
+  background-color: #0056b3;
+}
+        body {
+            background-color: #f4f6f9;
+            padding: 2rem;
+        }
+        .results-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        canvas {
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+<div class="container results-container">
+    <h2 class="text-center mb-4">📚 Your Past Results</h2>
+
+    {% if result_data %}
+    <table class="table table-hover table-bordered align-middle">
+        <thead class="table-dark text-center">
+            <tr>
+                <th class="text-start">Subjects</th>
+                <th class="text-start">Total Score</th>
+                <th class="text-start">Percentage</th>
+                <th class="text-center">Date Attempted</th>
+                <th class="text-center">Time Spent</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for res in result_data %}
+            <tr>
+                <td class="text-start">{{ res.subject }}</td>
+                <td class="text-start">{{ res.score }}/{{ res.total }}</td>
+                <td class="text-start">{{ res.percentage }}%</td>
+                <td class="text-center">{{ res.date }}</td>
+                <td class="text-center">{{ res.time_spent }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+    <!-- Chart for Past Performance -->
+    <h4 class="text-center mt-5">📊 Performance Overview</h4>
+    <canvas id="performanceChart" width="400" height="200"></canvas>
+
+<div class="text-center mt-5">
+        {% if result %}
+    <a href="{{ url_for('postutme_result', result_id=result.id) }}" class="btn btn-info">📊 ← Back to Result Page</a>
+    {% endif %}
+    </div>
+    
+    <script>
+        const ctx = document.getElementById('performanceChart').getContext('2d');
+        const performanceChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ result_data|map(attribute='subject')|list|tojson }},
+                datasets: [{
+                    label: 'Score Percentage',
+                    data: {{ result_data|map(attribute='percentage')|list|tojson }},
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                    borderRadius: 10
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Percentage (%)'
+                        }
+                    }
+                }
+            }
+        });
+        function toggleMode() {
+  const isDark = document.body.classList.toggle("dark-mode");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+}
+window.onload = () => {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.body.classList.add("dark-mode");
+  }
+}; 
+    </script>
+
+    {% else %}
+    <div class="alert alert-info text-center mt-4">
+        You haven’t taken any Postutme exams yet.
+    </div>
+    {% endif %}
+    <div class="toggle-container text-end p-3">
+  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
+</div>
+</div>
+</div>
+    <div class="text-center text-muted big mb-3">Developed by Medic Adrenaline</div>
+  </div>
+</body>
+</html>
