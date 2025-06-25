@@ -1,85 +1,209 @@
-{% extends 'base.html' %}
-{% block title %}Generate PIN{% endblock %}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <title>Generate PIN</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-light: #f9f9f9;
+            --text-light: #111;
+            --bg-dark: #121212;
+            --text-dark: #eee;
+            --primary: blue;
+            --accent: #00c853;
+        }
 
-{% block content %}
-<div class="container mt-5" style="color: blue; font-size: x-large; font-weight: bold;">
-    <div class="flash-messages">
+        [data-theme='light'] {
+            background-color: var(--bg-light);
+            color: var(--text-light);
+        }
+
+        [data-theme='dark'] {
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: auto;
+            padding: 2rem;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--primary);
+            font-size: 1.8rem;
+            font-weight: bolder;
+        }
+
+        .alert {
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .alert-info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+        }
+
+        .form-container {
+            margin-bottom: 1.5rem;
+        }
+
+        select, input[type="checkbox"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent);
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .switch-link {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        .flash-info {
+            background-color: #cce5ff;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .theme-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background-color: #00c853e0;
+            border: 2px solid var(--accent);
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        @media screen and (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="theme-toggle" onclick="toggleTheme()">Toggle Theme</button>
+
+    <div class="container">
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 {% for message in messages %}
-                    <div class="flash-info mt-3">{{ message }}</div>
+                    <div class="flash-info">{{ message }}</div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-    </div>
 
-    <div class="alert alert-info" style="color: black; font-size: xx-large; font-weight: bold;">
-        Contact Admin via
-        <strong><a href="https://wa.me/2348135047400" target="_blank" class="btn btn-success mt-3">Contact on WhatsApp</a></strong>
-        to confirm payment and activate your PIN.
-    </div>
-
-    <div class="alert alert-info" style="color: red; font-size: x-large; font-weight: bold;">
-        Note: Pay the exact amount you selected
-    </div>
-
-     <h2 class="text-center" style="color: blue; font-size: larger; font-weight: bolder;">GENERATE PIN HERE</h2>
-    <form method="POST" action="{{ url_for('generate_pin') }}">
-        <div class="form-container">
-            <label><input type="checkbox" name="exam_mode" value="postutme">
-                <span  class="text-center">Click the checkbox to proceed with paystack(₦2000)</span></label><br>
+        <div class="alert alert-info" style="color: black;">
+            Contact Admin via 
+            <strong><a href="https://wa.me/2348135047400" target="_blank" style="color: green;">WhatsApp</a></strong> 
+            to confirm payment and activate your PIN.
         </div>
-        <style>
-            input[type="checkbox"] {
-                width: 15px;
-                height: 15px;
-                transform: scale(1.5);
+
+        <div class="alert alert-info" style="color: red;">
+            Note: Pay the exact amount you selected
+        </div>
+
+        <h2>GENERATE PIN HERE</h2>
+
+        <form method="POST" action="{{ url_for('generate_pin') }}">
+            <div class="form-container">
+                <label>
+                    <input type="checkbox" name="exam_mode" value="postutme">
+                    <span style="font-style: italic; font-family: monospace; font-weight: bold; font-size: x-large;">Click the checkbox to proceed with Paystack (₦2000)</span>
+                </label>
+            </div>
+<div class="form-container">
+                <h2 style="font-size: 1.3rem;">CHOOSE PAYMENT OPTION</h2>
+                <select name="payment_method" id="payment_method" required>
+                    <option value="" disabled selected>Select payment method</option>
+                    <option value="paystack">Pay with Paystack</option>
+                    <option value="whatsapp_proof">Bank Transfer & Proof</option>
+                    <option value="whatsapp_chat">Chat Me for More Options</option>
+                </select>
+            </div>
+
+            <div id="bank-details" class="form-container" style="display: none;">
+                <h4 style="color: var(--primary);">Acct Details:</h4>
+                <p><strong>Bank:</strong> Opay</p>
+                <p><strong>Account Name:</strong> Bakre Feranmi David</p>
+                <p><strong>Account Number:</strong> 8135047400</p>
+                <hr>
+                <p><strong>After payment, send your proof with your username/email to WhatsApp above.</strong></p>
+            </div>
+
+            <button type="submit" class="btn">Proceed</button>
+        </form>
+
+        <p class="switch-link">
+            <a href="{{ url_for('dashboard') }}" style="text-decoration: underline;">Back to Dashboard</a>
+        </p>
+    </div>
+    <footer>
+    <p class="footer-text" style="font-size: larger; font-weight: bolder; text-align: center;">Developed by Medic Adrenaline</p>
+  </footer>
+
+    <script>
+        const bankDetails = document.getElementById('bank-details');
+        const select = document.getElementById('payment_method');
+
+        select.addEventListener('change', () => {
+            if (select.value === 'whatsapp_proof') {
+                bankDetails.style.display = 'block';
+            } else {
+                bankDetails.style.display = 'none';
             }
-            .text-center {
-                color: black;
-                font-weight: bolder;
-                font-style: italic;
-                font-family: 'Courier New', Courier, monospace;
+        });
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        }
+
+        window.onload = () => {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                document.documentElement.setAttribute('data-theme', savedTheme);
             }
-
-        </style>
-        <div class="form-container">
-            <h2 class="text-center" style="color: black; font-size: x-large; font-weight: bolder;">CHOOSE PAYMENT OPTION</h2>
-            <select class="form-control"  style="padding: 7px 14px;" name="payment_method" id="payment_method" required>
-                <option value="" disabled selected>Select payment method</option>
-                <option value="paystack">Pay with Paystack</option>
-                <option value="whatsapp_proof">Pay directly into bank account and send proof to Admin above</option>
-                <option value="whatsapp_chat">Text me on WhatsApp for more payment options</option>
-            </select>
-        </div>
-
-        <!-- Bank Transfer Details -->
-        <div id="bank-details" class="form-container" style="color: black; font-size: large; font-weight: bolder;">
-            <h5 class="mb-2" style="font-size: x-large; color: blue; font-weight: bolder;">Acct Details:</h5>
-            <p><strong>Bank:</strong> Opay</p>
-            <p><strong>Account Name:</strong> Bakre Feranmi David</p>
-            <p><strong>Account Number:</strong> 8135047400</p>
-            <hr>
-            <p><strong>After payment, send your proof with your username or email to the WhatsApp above for PIN activation.</strong></p>
-        </div>
-
-        <!-- Proceed button always visible -->
-        <button type="submit" class="btn">Proceed</button>
-    </form>
-</div>
-
-<p class="switch-link">
-        <a href="{{ url_for('dashboard') }}" style="color: black; font-size: x-large; 
-        text-decoration: underline; font-weight: bolder;">Back to Dashboard</a>
-    </p>
-<script>
-document.getElementById('payment_method').addEventListener('change', function () {
-    var bankDetails = document.getElementById('bank-details');
-    if (this.value === 'whatsapp_proof') {
-        bankDetails.style.display = 'block';
-    } else {
-        bankDetails.style.display = 'none';
-    }
-});
-</script>
-{% endblock %}
+        };
+    </script>
+</body>
+</html>

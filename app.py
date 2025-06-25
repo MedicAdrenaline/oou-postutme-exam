@@ -1,5 +1,5 @@
 # IMPORTS 
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, json
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, json, make_response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests, secrets, os, uuid, string, random, time, threading
@@ -61,7 +61,6 @@ def default_blocked_modes():
         "postutme": False,
         "alevel": False
     }
-    #Users
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -76,8 +75,7 @@ class User(UserMixin, db.Model):
     reset_token_expiration = db.Column(db.DateTime, nullable=True)
     last_attempt_time = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-
-# Pin model
+    
 class Pin(db.Model):
     __tablename__ = 'pins'
     id = db.Column(db.Integer, primary_key=True)
@@ -86,10 +84,10 @@ class Pin(db.Model):
     is_used = db.Column(db.Boolean, default=False)
     device_id = db.Column(db.String(255), nullable=True)
     exam_mode = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     is_active = db.Column(db.Boolean, default=False)
+    user = db.relationship('User', backref=db.backref('pins', lazy=True))
 
-# UserExamSession model
 class UserExamSession(db.Model):
     __tablename__ = 'user_exam_session'
     id = db.Column(db.Integer, primary_key=True)
@@ -97,7 +95,8 @@ class UserExamSession(db.Model):
     subject = db.Column(db.String(200), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     question_ids = db.Column(db.Text, nullable=False)  # comma-separated question IDs
-    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    user = db.relationship('User', backref='exam_sessions')
 
 # Question model
 class Question(db.Model):
@@ -105,41 +104,39 @@ class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     exam_mode = db.Column(db.String(100), nullable=False)
     subject = db.Column(db.String(200), nullable=False)
-    question_text = db.Column(db.Text, nullable=True)
-    question_image = db.Column(db.String(255), nullable=True)
+    question_text = db.Column(db.Text, nullable=True)  # nullable=True if question can be image-based only
+    question_image = db.Column(db.String(255), nullable=True)  # image URL or path
     option_a = db.Column(db.String(255), nullable=False)
     option_b = db.Column(db.String(255), nullable=False)
     option_c = db.Column(db.String(255), nullable=False)
     option_d = db.Column(db.String(255), nullable=False)
     correct_option = db.Column(db.String(1), nullable=False)
-    explanation = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    attempts = db.relationship('QuestionAttempt', backref='question', lazy=True)
+    explanation = db.Column(db.Text, nullable=True)  # explanation text
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
 
-# ExamAttempt model
 class ExamAttempt(db.Model):
     __tablename__ = 'exam_attempts'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    exam_mode = db.Column(db.String(100), nullable=False)
-    subjects = db.Column(db.String(255), nullable=False)  # JSON string or CSV
-    questions_json = db.Column(db.Text, nullable=False)   # JSON list as string
-    answers_json = db.Column(db.Text, nullable=True)      # JSON dict as string
-    time_remaining = db.Column(db.Integer, default=7200)
-    status = db.Column(db.String(20), default='ongoing')
+    exam_mode = db.Column(db.String(100), nullable=False)  # 'jamb'
+    subjects = db.Column(db.String(255), nullable=False)  # store as JSON string or CSV of selected subjects
+    questions_json = db.Column(db.Text, nullable=False)  # JSON list of question IDs for this attempt
+    answers_json = db.Column(db.Text, nullable=True)  # JSON dict of {question_id: selected_answer}
+    time_remaining = db.Column(db.Integer, default=7200)  # seconds left
+    status = db.Column(db.String(20), default='ongoing')  # 'ongoing' or 'submitted'
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
-    submitted_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    user = db.relationship('User', backref='exam_attempts')
+    submitted_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     is_retake = db.Column(db.Boolean, default=False)
 
-# QuestionAttempt model
 class QuestionAttempt(db.Model):
     __tablename__ = 'question_attempts'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # You can link this to your User model if needed
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     subject = db.Column(db.String(200), nullable=False)
-    timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     selected_option = db.Column(db.String(1), nullable=True)
     is_correct = db.Column(db.Boolean, nullable=True)
 
@@ -150,32 +147,102 @@ class ExamResult(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     score = db.Column(db.Integer, nullable=False)
-    total = db.Column(db.Integer, nullable=False)
+    total = db.Column(db.Integer, nullable=False)  # total questions
     percentage = db.Column(db.Float, nullable=False)
-    subject_scores = db.Column(db.Text, nullable=True)      # JSON string
-    selected_subjects = db.Column(db.Text, nullable=True)   # JSON string
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    subject_scores = db.Column(db.Text, nullable=True)  # JSON string
+    selected_subjects = db.Column(db.Text, nullable=True) # NEW: JSON string of selected subject
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
 
-    #donatedPQ
 class DonatedPQ(db.Model):
-    __tablename__ = 'donated_pq'
+    __tablename__ = 'donated_pq'  # Note: needs double underscores for SQLAlchemy to recognize it
     id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100))
     title = db.Column(db.String(150), nullable=False)
     subject = db.Column(db.String(100), nullable=False)
     exam_type = db.Column(db.String(50), nullable=False)
     filename = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    upload_date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
-    
-    #Admin
+    upload_date = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    device_id = db.Column(db.String(100), nullable=False)  # ✅ Add this line
+
+class ChatHistory(db.Model):
+    __tablename__ = 'chat_history'  # optional, for explicit naming
+    id = db.Column(db.Integer, primary_key=True)
+    user = db.Column(db.String(100))  # e.g., device_id or user ID
+    role = db.Column(db.String(10))  # 'user' or 'ai'
+    message = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+class CommonQueries(db.Model):
+    __tablename__ = 'common_queries'
+    id = db.Column(db.Integer, primary_key=True)
+    intent = db.Column(db.String(500), unique=True, nullable=False)
+    count = db.Column(db.Integer, default=1)
+    last_asked = db.Column(db.DateTime, default=datetime.utcnow)
+
+class AdmissionUpdate(db.Model):
+    __tablename__ = 'updates'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    date_posted = db.Column(db.DateTime, default=datetime.utcnow)
+    views = db.Column(db.Integer, default=0)
+    likes = db.Column(db.Integer, default=0)
+    comments = db.relationship('Comment', backref='update', lazy=True)
+    reactions = db.relationship('PostReaction', backref='update', lazy=True)
+
+class Comment(db.Model):
+    __tablename__ = 'comments'
+    id = db.Column(db.Integer, primary_key=True)
+    update_id = db.Column(db.Integer, db.ForeignKey('updates.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    date_posted = db.Column(db.DateTime, default=datetime.utcnow)
+    replies = db.relationship('Reply', backref='comment', lazy=True)
+    user = db.relationship('User', backref='comments')
+    reactions = db.relationship('CommentReaction', backref='comment', lazy=True)
+
+class Reply(db.Model):
+    __tablename__ = 'replies'
+    id = db.Column(db.Integer, primary_key=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('comments.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user = db.relationship('User', backref='replies')
+    content = db.Column(db.Text, nullable=False)
+    date_posted = db.Column(db.DateTime, default=datetime.utcnow)
+
+class PostReaction(db.Model):
+    __tablename__ = 'post_reaction'
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey('updates.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    user = db.relationship('User', backref='post_reaction')
+    reaction = db.Column(db.String(10))  # "like", "heart"
+
+class CommentReaction(db.Model):
+    __tablename__ = 'comments_reaction'
+    id = db.Column(db.Integer, primary_key=True)
+    comment_id = db.Column(db.Integer, db.ForeignKey('comments.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    user = db.relationship('User', backref='comment_reaction')
+    reaction = db.Column(db.String(10))
+
+class PostView(db.Model):
+    __tablename__ = 'post_view'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    update_id = db.Column(db.Integer, db.ForeignKey('updates.id'))
+
 class Admin(db.Model):
     __tablename__ = 'admin'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(255), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)   
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
+    def set_password(self, password):
+        self.password = generate_password_hash(password)
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
@@ -199,7 +266,6 @@ def postutme_instructions():
 def courses_cutoff():
     return render_template('courses_cutoff.html')
 
-
 @app.route('/aggregate-calculator', methods=['GET', 'POST'])
 def aggregate_calculator():
     aggregate = None
@@ -215,6 +281,7 @@ def aggregate_calculator():
         except ValueError:
             error = "Please enter valid numbers."
     return render_template("aggregate_calculator.html", aggregate=aggregate, error=error)
+
 UPLOAD_FOLDER = 'static/uploads/pqs'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -223,29 +290,70 @@ ALLOWED_EXTENSIONS = {'pdf'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-@app.route('/donate-pq', methods=['GET', 'POST'])
+
+@app.route('/donate_pq', methods=['GET', 'POST'])
 def donate_pq():
+    device_id = request.cookies.get('device_id')
+    if not device_id:
+        device_id = str(uuid.uuid4())
+
     if request.method == 'POST':
         title = request.form['title']
+        name = request.form['name']
         subject = request.form['subject']
         exam_type = request.form['exam_type']
-        description = request.form['description']
+        description = request.form.get('description', '')
         file = request.files['file']
+
         if file and allowed_file(file.filename):
             filename = secure_filename(file.filename)
             save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(save_path)
+
             # Save to DB
-            new_pq = DonatedPQ(title=title, subject=subject, exam_type=exam_type, filename=filename, description=description)
+            new_pq = DonatedPQ(
+                title=title,
+                name=name,
+                subject=subject,
+                exam_type=exam_type,
+                filename=filename,
+                description=description,
+                upload_date=datetime.utcnow(),
+                device_id=device_id
+            )
             db.session.add(new_pq)
             db.session.commit()
+
             flash("Past Question uploaded successfully!", "success")
-            return redirect(url_for('donate_pq'))
+            resp = make_response(redirect(url_for('donate_pq')))
+            resp.set_cookie('device_id', device_id, max_age=60 * 60 * 24 * 365 * 2)  # 2 years
+            return resp
         else:
             flash("Only PDF files are allowed.", "danger")
+
     # Show donated PQs
     donated_pqs = DonatedPQ.query.order_by(DonatedPQ.id.desc()).all()
-    return render_template('donate_pq.html', pqs=donated_pqs)
+    resp = make_response(render_template('donate_pq.html', pqs=donated_pqs, user_device=device_id))
+    resp.set_cookie('device_id', device_id, max_age=60 * 60 * 24 * 365 * 2)
+    return resp
+
+@app.route('/delete_pq/<int:pq_id>', methods=['POST'])
+def delete_pq(pq_id):
+    pq = DonatedPQ.query.get_or_404(pq_id)
+    user_device = request.cookies.get('device_id')
+
+    if pq.device_id != user_device:
+        flash("You’re not authorized to delete this file.", "danger")
+        return redirect(url_for('donate_pq'))
+    # Delete file from uploads
+    file_path = os.path.join(app.root_path, 'static/uploads/pqs', pq.filename)
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    # Remove record from database
+    db.session.delete(pq)
+    db.session.commit()
+    flash("Past Question deleted successfully.", "success")
+    return redirect(url_for('donate_pq'))
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -350,7 +458,7 @@ def forgot_password():
     # Generate a 5-character token
             token = generate_reset_token()
     # Set expiration to 1 hour from now
-            expiration_time = datetime.now(timezone.utc) + timedelta(hours=1)
+            expiration_time = datetime.utcnow() + timedelta(hours=1)
     # Update user record with the token and expiration
             user.reset_token = token
             user.reset_token_expiration = expiration_time
@@ -547,7 +655,7 @@ def is_blocked_for_exam(user, exam_mode):
         blocked_until = datetime.fromisoformat(blocked_until)
         if blocked_until.tzinfo is None: # Make it timezone-aware (UTC)
             blocked_until = blocked_until.replace(tzinfo=timezone.utc)
-    if blocked_until and blocked_until > datetime.now(timezone.utc):
+    if blocked_until and blocked_until > datetime.utcnow():
         return True, blocked_until
     return False, None
 
@@ -565,7 +673,7 @@ def postutme_exam():
         'postutme.html',
         blocked=blocked,
         blocked_until=blocked_until,
-        current_time=datetime.now(timezone.utc)  # ✅ This line fixes the Jinja2 error
+        current_time=datetime.utcnow()  # ✅ This line fixes the Jinja2 error
     )
 
 # =========================== #
@@ -828,7 +936,7 @@ def submit_postutme_exam():
         session.pop('postutme_answers', None)
         session.pop('postutme_attempt_id', None)
 
-        flash("Exam submitted successfully. View your result below.", "success")
+        flash("Exam submitted successfully.", "success")
         return redirect(url_for('postutme_result', result_id=result.id))
 
     except Exception as e:
@@ -901,7 +1009,7 @@ def retake_postutme_exam():
     session.pop('postutme_answers', None)
     session.pop('postutme_time_left', None)  # Optional cleanup
 
-    flash("Retake started. Good luck!", "success")
+    flash("Start New Exam or Retake Last Exam Below. Good luck!", "success")
     return redirect(url_for('postutme_exam_page'))  # Rename if needed
 
 @app.route('/postutme_result/<int:result_id>')
@@ -913,7 +1021,7 @@ def postutme_result(result_id):
     # Get related exam attempt
     attempt = ExamAttempt.query.filter_by(
         user_id=result.user_id,
-        exam_mode='postutme',
+        exam_mode='POSTUTME',
         status='submitted'
     ).order_by(ExamAttempt.id.desc()).first()
 
@@ -982,7 +1090,6 @@ def postutme_result(result_id):
                 'total': 10,
                 'over_100': round((correct_count / 10) * 100, 2)
             }
-
     percentage = round((total_score / (len(subject_order) * 10)) * 100, 2) if subject_order else 0
 
     session.pop('postutme_subjects', None)
@@ -1039,13 +1146,14 @@ def postutme_leaderboard():
             exam_duration = "N/A"
             exam_date = result.created_at.strftime('%Y-%m-%d %H:%M')
             duration_seconds = float('inf')
-
-        # ✅ Use subject_scores to calculate correct score out of 20 per subject
+        # ✅ Use subject_scores to calculate correct score out of 10 per subject
         subject_scores = json.loads(result.subject_scores or '{}')
+# ✅ Skip if less than 5 subjects attempted
+        if len(subject_scores) < 5:
+            continue
         raw_correct = sum(s['correct'] for s in subject_scores.values())
         total_possible = len(subject_scores) * 10
-        percentage = round((raw_correct / total_possible) * 100, 2) if total_possible else 0
-
+        percentage = round((raw_correct / total_possible) * 100, 2) if total_possible else 0        
         leaderboard.append({
             'name': username,
             'score': f"{raw_correct}/{total_possible}",
@@ -1054,15 +1162,12 @@ def postutme_leaderboard():
             'exam_duration': exam_duration,
             'date': exam_date
         })
-
     # Sort by percentage DESC, then duration ASC
     sorted_leaderboard = sorted(leaderboard, key=lambda x: (-x['percentage'], x['duration_seconds']))
-
     # Assign ranks with tie-handling
     top_20 = []
     rank = 1
     prev_entry = None
-
     for entry in sorted_leaderboard:
         if prev_entry and entry['percentage'] == prev_entry['percentage'] and entry['duration_seconds'] == prev_entry['duration_seconds']:
             entry['rank'] = rank
@@ -1073,7 +1178,6 @@ def postutme_leaderboard():
         if len(top_20) == 20:
             break
         prev_entry = entry
-
     return render_template('postutme_leaderboard.html', leaderboard=top_20, result=result)
 
 @app.route('/postutme_past_results')
@@ -1096,7 +1200,7 @@ def postutme_past_results():
             subject_name = subject.capitalize()
             subject_score = round(data.get('correct', 0), 2)
             score_over_100 = round(data.get('over_100', 0), 2)
-            subjects_with_scores.append(f"{subject_name} - {score_over_100}")
+            subjects_with_scores.append(f"{subject_name} - {subject_score}/10")
             total_raw_score += subject_score
             total_possible += 10  # Each subject is over 10
 
@@ -1130,8 +1234,240 @@ def postutme_past_results():
             'date': exam_date,
             'time_spent': exam_duration
         })
-
     return render_template('postutme_past_results.html', result_data=result_data, result=result if last_results else None)
+
+
+#ADRENA AI
+# Initialize OpenAI client once
+client = OpenAI(api_key=app.config['OPENAI_API_KEY'])
+# API keys
+openai.api_key = app.config['OPENAI_API_KEY']
+wolfram_client = wolframalpha.Client(app.config['WOLFRAM_APP_ID'])
+hugging_model = None  # Global variable for caching the model
+
+# Define intents and detection function at the top of your file
+INTENTS = {
+    "greeting": ['hello', 'hi', 'how are you doing', 'who are you', 'hey', 'good morning', 'good afternoon', 'good evening'],
+    "explanation": ['explain', 'what is', 'define', 'meaning of'],
+    "calculation": ['calculate', 'solve', 'evaluate', 'integrate', 'differentiate'],
+    "medical": ['treat', 'symptoms of', 'disease', 'drug', 'diagnose', 'cure'],
+    "farewell": ['bye', 'goodbye', 'see you', 'take care'],
+    "study": ['mnemonic', 'study tip', 'revise', 'summarise', 'summary'],
+}
+
+def detect_intent(user_input):
+    user_input = user_input.lower()
+    for intent, keywords in INTENTS.items():
+        if any(word in user_input for word in keywords):
+            return intent
+    return "general"
+
+# Route definition
+@app.route('/adrena-ai', methods=['GET', 'POST'])
+def adrena_ai():
+    global hugging_model
+    user_id = session.get('device_id', request.remote_addr)
+    user_input = request.form.get('user_input', '')
+    
+    if request.method == 'POST':
+        print("POST request received")
+        print("Form data:", request.form)
+        user_input = request.form['user_input']
+        response = ""
+        intent = detect_intent(user_input)
+
+        try:
+            # Update CommonQueries count
+            query = CommonQueries.query.filter_by(intent=intent).first()
+            if query:
+                query.count += 1
+            else:
+                query = CommonQueries(intent=intent, count=1)
+                db.session.add(query)
+            db.session.commit()
+
+            # Intent-based response
+            if intent == "calculation":
+                res = wolfram_client.query(user_input)
+                response = next(res.results).text
+
+            elif intent == "medical":
+                pub_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term={user_input}&retmode=json"
+                data = requests.get(pub_url).json()
+                ids = data['esearchresult'].get('idlist', [])[:3]
+                response = f"Top PubMed IDs: {', '.join(ids)}" if ids else "No articles found."
+
+            elif intent == "greeting":
+                response = "Hey there! I’m Adrena AI. How can I help you today? Need study help, explanations, or a cool mnemonic?"
+
+            elif intent == "farewell":
+                response = "Goodbye! Don’t forget to revise what you’ve learned today 😊"
+
+            elif intent == "study":
+                response = "Here’s a quick study tip: Use mnemonics to improve memory. Want one for Biology or Physics?"
+
+            elif intent == "explanation" or app.config['OPENAI_API_KEY']:
+                completion = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": user_input}]
+                )
+                response = completion.choices[0].message.content
+
+            else:
+                if hugging_model is None:
+                    hugging_model = pipeline("text-generation", model="gpt2", max_new_tokens=100)
+                result = hugging_model(user_input)
+                response = result[0]['generated_text']
+
+        except Exception as e:
+            print(f"Error: {e}")
+            response = "I no sabi that one yet ooh..."
+
+        # Save conversation
+        db.session.add(ChatHistory(user=user_id, role='user', message=user_input))
+        db.session.add(ChatHistory(user=user_id, role='ai', message=response))
+        db.session.commit()
+        return jsonify({"response": response})
+
+    # GET method: return past chat history
+    history_records = ChatHistory.query.filter_by(user=user_id).order_by(ChatHistory.timestamp).all()
+    history = [{"user": r.message} if r.role == 'user' else {"ai": r.message} for r in history_records]
+    formatted = []
+    user_msg = None
+    for entry in history:
+        if "user" in entry:
+            user_msg = entry["user"]
+        elif "ai" in entry and user_msg:
+            formatted.append({"user": user_msg, "ai": entry["ai"]})
+            user_msg = None
+    return render_template("adrena_ai.html", history=formatted)
+
+@app.route('/admin/chat-history')
+def admin_chat_history():
+    user_id = session.get('device_id', request.remote_addr)
+    records = ChatHistory.query.filter_by(user=user_id).order_by(ChatHistory.timestamp).all()
+    # Group by date
+    grouped_history = defaultdict(list)
+    user_msg = None
+    for r in records:
+        date = r.timestamp.strftime('%Y-%m-%d')
+        if r.role == 'user':
+            user_msg = r.message
+        elif r.role == 'ai' and user_msg:
+            grouped_history[date].append({'user': user_msg, 'ai': r.message})
+            user_msg = None
+    return render_template('admin_chat_history.html', history=grouped_history)
+
+@app.route('/clear-chat', methods=['POST'])
+def clear_chat():
+    user_id = session.get('device_id', request.remote_addr)
+    ChatHistory.query.filter_by(user=user_id).delete()
+    db.session.commit()
+    return jsonify({"message": "Chat cleared"})
+
+@app.route('/updates', methods=['GET', 'POST'])
+def updates():
+    user = db.session.get(User, session.get('user_id'))
+    updates = AdmissionUpdate.query.order_by(AdmissionUpdate.date_posted.desc()).all()
+    if user:
+        for update in updates:
+            already_viewed = PostView.query.filter_by(user_id=user.id, update_id=update.id).first()
+            if not already_viewed:
+                view = PostView(user_id=user.id, update_id=update.id)
+                update.views += 1
+                db.session.add(view)
+        db.session.commit()
+    if request.method == 'POST':
+        if not user:
+            flash("Session expired. Please log in again.", "danger")
+            return redirect(url_for('login'))
+        update_id = request.form.get('update_id')
+        comment_text = request.form.get('comment')
+        if update_id and comment_text:
+            comment = Comment(update_id=int(update_id), content=comment_text, user_id=user.id)
+            db.session.add(comment)
+            db.session.commit()
+            flash("Comment posted.", "success")
+            return redirect(url_for('updates', _anchor=f"update-{update_id}"))
+    return render_template('updates.html', updates=updates)
+
+
+# COMMENT ON UPDATE
+@app.route('/comment/<int:update_id>', methods=['POST'])
+def comment_on_update(update_id):
+    user = db.session.get(User, session.get('user_id'))
+    update = AdmissionUpdate.query.get_or_404(update_id)
+    content = request.form.get('comment')
+    if user and content:
+        comment = Comment(update_id=update.id, content=content, user_id=user.id)
+        db.session.add(comment)
+        db.session.commit()
+        flash("Comment posted.", "success")
+    else:
+        flash("Please log in and write a valid comment.", "danger")
+    return redirect(url_for('updates', _anchor=f"update-{update.id}"))
+
+
+# REPLY TO A COMMENT
+@app.route('/reply_comment/<int:comment_id>', methods=['POST'])
+def reply_comment(comment_id):
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Session expired. Please log in again.", "danger")
+        return redirect(url_for('login'))
+
+    content = request.form['reply']
+    reply = Reply(comment_id=comment_id, content=content, user_id=user.id)
+    db.session.add(reply)
+    db.session.commit()
+    update_id = Comment.query.get(comment_id).update_id
+    return redirect(url_for('updates', _anchor=f"update-{update_id}"))
+
+
+# LIKE UPDATE
+@app.route('/like_update/<int:update_id>', methods=['POST'])
+def like_update(update_id):
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Session expired. Please log in again.", "danger")
+        return redirect(url_for('login'))
+    update = AdmissionUpdate.query.get_or_404(update_id)
+    existing_reaction = PostReaction.query.filter_by(post_id=update.id, user_id=user.id).first()
+    if existing_reaction:
+        # Remove the like
+        db.session.delete(existing_reaction)
+        if update.likes > 0:
+            update.likes -= 1
+        db.session.commit()
+        flash("Like removed.", "info")
+    else:
+        # Add a like
+        reaction = PostReaction(post_id=update.id, user_id=user.id, reaction='like')
+        db.session.add(reaction)
+        update.likes += 1
+        db.session.commit()
+        flash("You liked this post.", "success")
+    return redirect(url_for('updates', _anchor=f"update-{update.id}"))
+
+# LIKE A COMMENT
+@app.route('/like_comment/<int:comment_id>', methods=['POST'])
+def like_comment(comment_id):
+    user = db.session.get(User, session.get('user_id'))
+    if not user:
+        flash("Please log in to like comments.", "danger")
+        return redirect(url_for('login'))
+    comment = Comment.query.get_or_404(comment_id)
+    existing_like = CommentReaction.query.filter_by(comment_id=comment.id, user_id=user.id).first()
+    if existing_like:
+        db.session.delete(existing_like)
+        db.session.commit()
+        flash("Like removed from comment.", "info")
+    else:
+        new_like = CommentReaction(comment_id=comment.id, user_id=user.id)
+        db.session.add(new_like)
+        db.session.commit()
+        flash("Comment liked!", "success")
+    return redirect(url_for('updates', _anchor=f"update-{comment.update_id}"))
 
 if __name__ == '__main__':
     threading.Thread(target=clean_unverified_users, daemon=True).start()

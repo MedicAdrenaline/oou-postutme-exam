@@ -1,61 +1,130 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | Medic Adrenaline</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      transition: background-color 0.5s ease, color 0.5s ease;
+      font-weight: bold;
+      overflow-x: hidden;
+    }
 
-{% block title %}Login{% endblock %}
+    .container {
+      padding-top: 60px;
+    }
 
-{% block content %}
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    .toggle-btn {
+      position: relative;
+      top: 10px;
+      color: #000;
+      font-weight: bolder;
+      background-color: blue;
+      right: 10px;
+      z-index: 9999;
+    }
+
+    .marquee-container {
+      width: 100%;
+      overflow: hidden;
+      background-color: #222;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      padding: 10px 0;
+    }
+
+    .marquee-content {
+      white-space: nowrap;
+      animation: scroll-left 20s linear infinite;
+      color: #fff;
+    }
+
+    @keyframes scroll-left {
+      from { transform: translateX(100%); }
+      to { transform: translateX(-100%); }
+    }
+
+    .btn-join {
+      font-size: large;
+      font-weight: bold;
+      margin: 10px;
+    }
+
+    .btn-fixed {
+      position: fixed;
+      right: 20px;
+      z-index: 1000;
+      font-weight: bold;
+    }
+
+    .top-fixed {
+      top: 7%;
+    }
+
+    .bottom-fixed {
+      bottom: 15%;
+    }
+
+    .light-mode {
+      background-color: #f8f9fa;
+      color: #000;
+    }
+
+    .dark-mode {
+      background-color: #121212;
+      color: #fff;
+    }
+
+    .section {
+      text-align: center;
+      margin-top: 30px;
+    }
+
+    h3 {
+      font-weight: bolder;
+      font-style: italic;
+    }
+
+    .generate-section p {
+      margin-bottom: 10px;
+    }
+  </style>
 </head>
 <body>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="alert alert-success alert-dismissible fade show alert-message" role="alert">
-            {{ messages[0] }}
-        </div>
-        <script>
-            setTimeout(() => {
-                document.querySelector('.alert-message')?.classList.remove('show');
-            }, 3000);
-        </script>
-      {% endif %}
-    {% endwith %}
-    
-    <div class="container text-center generate-pin-container">
-  <p class="mb-4">KINDLY GENERATE YOUR PIN IF YOU HAV'T, TO GET STARTED</p>
-  <a href="{{ url_for('generate_pin') }}" class="btn btn-success mb-4">GENERATE PIN</a>
-</div>
-    
-    <div  class="welcome-username">
-   <h3>Welcome 🤗🤗, {{ username }}</h3>
-</div>
-    <div class="generate-pin">
-        <p>CLICK HERE TO ENTER PIN IF YOU'VE GENERATED ONE</p>
-        <a href="{{ url_for('postutme_exam') }}" class="btn btn-warning exam-button">ENTER PIN</a>
+  <!-- Theme Toggle Button -->
+  <button class="btn btn-outline-secondary toggle-btn" onclick="toggleTheme()">🌓 Toggle Theme</button>
+
+  <div class="container text-center">
+    <h3>Welcome 🤗🤗, {{ username }}</h3>
+
+    <div class="section generate-section">
+      <p>DON'T HAVE A PIN?, GENERATE HERE</p>
+      <a href="{{ url_for('generate_pin') }}" class="btn btn-success btn-lg">Generate PIN</a>
     </div>
 
-    <div class="social-section">
-        <p>JOIN OUR SOCIAL GROUPS</p>
-        <p>Join For Intensive Brainstorming, Tutorials And Admission Updates.</p>
-        <a href="https://chat.whatsapp.com/FmlWgWaqhW8E47ETK8oIwQ" class="btn btn-outline-info m-2" style="background-color: blue; 
-        font-size: large; font-weight: bolder;">WhatsApp Community</a>
-         <a href="https://chat.whatsapp.com/LYXPM3T5MVzKHCbqk8JMCK" class="btn btn-outline-info m-2"  style="background-color: blue; 
-        font-size: large; font-weight: bolder;">Putme/Waec Group</a>
-        <a href="t.me/MedicAdrenaline1" class="btn btn-outline-success m-2"  style="background-color: black; 
-        font-size: large; font-weight: bolder;">Telegram Channel</a>
-        <a href="https://youtube.com/@medicadrenaline?si=uzfEhkBbUiXkh4d4" class="btn btn-outline-danger m-2"  style="background-color: black; 
-        font-size: large; font-weight: bolder;">YouTube Channel</a>
+    <div class="section">
+      <p>ALREADY HAVE A PIN?</p>
+      <a href="{{ url_for('postutme_exam') }}" class="btn btn-warning btn-lg">Enter PIN</a>
     </div>
-</div>
 
-<a href="https://chat.whatsapp.com/FmlWgWaqhW8E47ETK8oIwQ" class="btn btn-outline-primary fixed-top-right"  style="background-color: black; 
-        font-size: large; font-weight: bolder;">ADMISSION UPDATES</a>
-<a href="{{ url_for('logout') }}" class="btn btn-outline-danger fixed-bottom-right"  style="background-color: blue; 
-        font-size: large; font-weight: bolder;">Logout</a>
+    <div class="section">
+      <p>CONNECT WITH US ON OUR SOCIAL PLATFORMS</p>
+      <p>For Intensive Brainstorming, Tutorials, and Admission Updates</p>
+      <a href="https://chat.whatsapp.com/FmlWgWaqhW8E47ETK8oIwQ" class="btn btn-info btn-join">WhatsApp Community</a>
+      <a href="https://chat.whatsapp.com/LYXPM3T5MVzKHCbqk8JMCK" class="btn btn-info btn-join">Putme/Waec Group</a>
+      <a href="https://t.me/MedicAdrenaline1" class="btn btn-dark btn-join">Telegram Channel</a>
+      <a href="https://youtube.com/@medicadrenaline?si=uzfEhkBbUiXkh4d4" class="btn btn-danger btn-join">YouTube Channel</a>
+    </div>
+  </div>
 
-<div class="marquee-container">
-  <div class="marquee-content">
+  <a href="{{ url_for('updates') }}" class="btn btn-outline-primary btn-fixed top-fixed">Admission Updates</a>
+  <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-fixed bottom-fixed">Logout</a>
+
+  <div class="marquee-container">
+    <div class="marquee-content">
     Welcome to Medic Adrenaline Exam Practice Platform! -------------------------------------------
     Keep pushing forward, you're doing great! -- Medic Adrenaline! -----------------------------------------------------------  
     Success is no accident. It is hard work and learning. -- Medic Adrenaline! ----------------------------------------------------------  
@@ -74,114 +143,33 @@
     He that talks much lies much.-- Medic Adrenaline ---------------------------------------------------
     Stop hating sinners on behalf of GOD. Even GOD is wondering who sent you. --Medic Adrenaline ---------------------------------------------------
     When you're fruitful, don’t mistake the admiration of men as love for YOU -- They only love the fruits. -- Medic Adrenaline ---------------------------------------------------
+    </div>
   </div>
-</div>
- <style>
-        body {
-            background-color: rgba(255, 255, 255, 0.288);
-            position: relative;
-            overflow-x: hidden;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        .exam-button {
-            margin: 10px;
-            padding: 15px 30px;
-            font-size: 18px;
-        }
-        .fixed-top-right {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            z-index: 1050;
-        }
 
-        .fixed-bottom-right {
-            position: fixed;
-            bottom: 13%;
-            right: 20px;
-            z-index: 1050;
-        }
-        .welcome-username {
-            position: fixed;
-            top: 15%;
-            left: 20px;
-            color: black;
-            font-size: x-large;
-            font-weight: bolder;
-            font-style: italic;
-        }
-        .social-section {
-            top: 60%;
-            left: 15%;
-            color: black;
-            position: fixed;
-            text-align: center;
-            font-size: x-large;
-            font-weight: bolder;
-            font-style: italic;
-            z-index: 1050;}
+  <script>
+    function toggleTheme() {
+      const body = document.body;
+      body.classList.toggle("dark-mode");
+      body.classList.toggle("light-mode");
 
-.generate-pin {
-    position: fixed;
-    top: 40%; /* adjust this to raise/lower */
-    left: 45%;
-    transform: translateX(-50%);
-    text-align: center;
-    padding: 20px;
-    color: black;
-    border-radius: 10px;
-    font-size: x-large;
-    font-weight: bolder;
-}
-.generate-pin-container {
-  position: fixed;
-  bottom: 50%;
-  left: 45%;
-  font-size: x-large;
-  transform: translateX(-50%);
-  color: black;
-  padding: 20px 30px;
-  border-radius: 12px;
-  font-weight: bolder;
+      if (body.classList.contains("dark-mode")) {
+        localStorage.setItem("theme", "dark");
+      } else {
+        localStorage.setItem("theme", "light");
+      }
+    }
 
-}
-        .exam-button {
-            font-size: 1rem;
-            padding: 8px 16px;
-        }
-        
-        .marquee-container {
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            background: transparent;
-            color: white;
-            font-weight: bolder;
-            font-style: italic;
-            padding: 10px 0;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            z-index: 1000;
-        }
-        .marquee-content {
-            display: inline-block;
-            padding-left: 100%;
-            animation: marquee 170s linear infinite;
-        }
-        @keyframes marquee {
-            0% { transform: translateX(0%); }
-            100% { transform: translateX(-100%); }
-        }
-        .alert-message {
-            position: fixed;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1050;
-        }
-    </style>
+    function applySavedTheme() {
+      const theme = localStorage.getItem("theme");
+      const body = document.body;
+      if (theme === "dark") {
+        body.classList.add("dark-mode");
+      } else {
+        body.classList.add("light-mode");
+      }
+    }
+
+    applySavedTheme();
+  </script>
 </body>
-{% endblock %}
+</html>

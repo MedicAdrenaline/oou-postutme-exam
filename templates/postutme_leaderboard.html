@@ -22,26 +22,27 @@ body {
 .dark-mode {
   background-color: #121212 !important;
   color: #e0e0e0 !important;
+  
 }
+    .theme-toggle {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 999;
+    }
 
-/* Example for sections/containers */
-.dark-mode .your-container-class {
-  background-color: #1e1e1e !important;
-  color: #e0e0e0 !important;
-}
+    .theme-toggle button {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
 
-/* Button Styles */
-.toggle-container button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-}
-.toggle-container button:hover {
-  background-color: #0056b3;
-}
+    .theme-toggle button:hover {
+      background-color: #0056b3;
+    }
     body {
       background: #f8f9fa;
     }
@@ -139,11 +140,11 @@ window.onload = () => {
 </script>
     </div>
   </div>
-   <div class="toggle-container text-end p-3">
-  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
-</div>
-  </div>
-    <div class="text-center text-muted big mb-3">Developed by Medic Adrenaline</div>
-  </div>
+   <div class="theme-toggle">
+    <button onclick="toggleMode()">🌙Toggle Theme</button>
+    </div>
+  <footer>
+    <p class="footer-text" style="font-size: larger; font-weight: bolder; text-align: center;">Developed by Medic Adrenaline</p>
+    </footer>
 </body>
 </html>

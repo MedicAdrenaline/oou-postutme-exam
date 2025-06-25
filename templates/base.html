@@ -8,55 +8,56 @@
     {% block styles %}{% endblock %}
     <style>
         body {
-    font-family: 'Segoe UI', sans-serif;
-    background-image: url("{{ url_for('static', filename='images/oou_background.jpg') }}");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    margin: 0;
-    padding: 0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
+            font-family: 'Segoe UI', sans-serif;
+            background-image: url("{{ url_for('static', filename='images/oou_background.jpg') }}");
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
         .container {
             width: 100%;
             max-width: 1200px;
             margin: auto;
-            padding: 1opx;
+            padding: 10px;
             flex: 1;
         }
 
         .header {
             text-align: center;
-            padding: 5px 0 5px 0;
+            padding: 5px 0;
             background-color: rgba(0, 0, 0, 0.801);
-            background-size: 5px;
             animation: fadeInDown 1s ease;
             font-size: 2rem;
-            overflow: hidden;
             width: 100%;
         }
+
         .moving-text {
             display: inline-block;
             white-space: nowrap;
             animation: slideRightToLeft 15s linear infinite;
             font-weight: bold;
-            padding: 5px 0 5px 0;
             font-size: 24px;
-            color: #ffffff;}
+            color: #fff;
+        }
 
-        @keyframes slideRightToLeft {0%   { 
-            transform: translateX(100%); } 100% { 
-            transform: translateX(-100%); }}
-     
+        @keyframes slideRightToLeft {
+            0%   { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+
         .profile-img {
             position: fixed;
             top: 3%;
             left: 0.5%;
             height: 22%;
-            background-color: rgba(255, 255, 255, 0.815);
             width: 14%;
+            background-color: rgba(255, 255, 255, 0.815);
             animation: fadeInDown 1s ease;
             z-index: 1001;
         }
@@ -67,7 +68,9 @@
             border-radius: 12px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.26);
             animation: fadeIn 0.8s ease;
+            width: 100%;
         }
+
         .header h1 {
             margin: 0;
             font-size: 2.5rem;
@@ -99,7 +102,6 @@
         .flash-warning { background-color: #ffc107; color: black; }
         .flash-error   { background-color: #dc3545; color: white; }
 
-        /* Auto-hide flash messages */
         .flash-messages div.fade-out {
             opacity: 0;
             visibility: hidden;
@@ -110,7 +112,6 @@
             transition: all 1s ease;
         }
 
-        /* Animations */
         @keyframes fadeInDown {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -131,18 +132,17 @@
         }
 
         .form-group {
-            margin-bottom: 18px
+            margin-bottom: 18px;
         }
 
         .form-group label {
             display: block;
             margin-bottom: 6px;
             font-weight: bold;
-            color: #333333;
+            color: #333;
             font-style: oblique;
             font-size: x-large;
         }
-
         .form-group input {
             width: 65%;
             padding: 12px;
@@ -185,35 +185,33 @@
 
         .switch-link a:hover {
             text-decoration: underline;
-            font-size: 22px;
         }
+
         .forgot-password-link {
             color: white;
             font-weight: bold;
             text-decoration: none;
             font-size: 22px;
         }
+
         footer {
             background-color: #333333f3;
-            background-size: 0%;
-            background-blend-mode: normal;
             color: white;
             text-align: center;
             padding: 3px 0;
+            width: 100%;
             margin-top: 10px;
         }
 
         .footer-text {
             font-weight: bold;
-            background-size: 0%;
-            padding: 0px;
+            font-size: larger;
         }
-        
 
         .motivational-quote {
             font-style: italic;
-            font-size: 20px;
-            padding: 0px;
+            font-size: larger;
+            font-weight: bold;
         }
 
         @media (max-width: 768px) {
@@ -223,60 +221,53 @@
 
             .btn {
                 width: 100%;
-                padding: 12px 24px;
-                background-color: #0004fffd;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                cursor: pointer;
-        }
+            }
 
             .header h1 {
                 font-size: 2rem;
             }
         }
-            .small-input {
-    width: 300px;
-    position: relative;
-}
 
-.small-input input {
-    padding-right: 50px;
-}
-.input-container {
-    position: relative;
-    width: 67%;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-size: 20px;
-}
+        .small-input {
+            width: 300px;
+            position: relative;
+        }
 
-.input-container input {
-    width: 100%;
-    padding-right: 40px; /* space for 👁️ */
-    font-size: large;
-    box-sizing: border-box;
-}
+        .small-input input {
+            padding-right: 50px;
+        }
 
-.toggle-icon {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: pointer;
-    font-size: 1.2rem;
-    user-select: none;
-}
+        .input-container {
+            position: relative;
+            width: 67%;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 20px;
+        }
 
+        .input-container input {
+            width: 100%;
+            padding-right: 40px;
+            font-size: large;
+            box-sizing: border-box;
+        }
+
+        .toggle-icon {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 1.2rem;
+            user-select: none;
+        }
     </style>
 </head>
 
 <body>
-
     <header class="header">
-    <h1 class="moving-text">WELCOME TO OOU POST-UTME EXAM PRACTICE</h1>
-    {% block subheader %}{% endblock %}
+        <h1 class="moving-text">WELCOME TO OOU POST-UTME EXAM PRACTICE</h1>
+        {% block subheader %}{% endblock %}
     </header>
 
     <div class="container">
@@ -292,14 +283,13 @@
         {% endwith %}
 
         <!-- Main Content -->
-        {% block content %}
-        {% endblock %}
+        {% block content %}{% endblock %}
     </div>
 
-    <footer>
-        <p class="footer-text"style="font-size: larger; font-weight: bolder">Developed by Medic Adrenaline</p>
-        <p class="motivational-quote" style="padding: 2px; font-size: larger; font-weight: bolder;">"Success doesn’t come from what you do occasionally, it comes from what you do consistently.--Medic Adrenaline"</p>
-    </footer>
+  <footer style="padding: 8px 0; margin-top: 20px; text-align: center;">
+    <p class="footer-text" style="margin: 0; font-size: 14px;">Developed by Medic Adrenaline</p>
+    <p class="motivational-quote" style="margin: 5px 0 0 0; font-size: 13px;">"Success doesn’t come from what you do occasionally, it comes from what you do consistently. — Medic Adrenaline"</p>
+</footer>
 
     <script>
         // Auto-hide flash messages after 5 seconds

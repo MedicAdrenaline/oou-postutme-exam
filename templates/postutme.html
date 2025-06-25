@@ -1,76 +1,116 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enter POST-UTME PIN</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      transition: background 0.3s, color 0.3s;
+      font-weight: bold;
+    }
 
-{% block title %}WELCOME{% endblock %}
+    [data-theme="dark"] body {
+      background-color: #121212;
+      color: #ffffff;
+    }
 
-{% block content %}
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Enter POST-UTME PIN</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+    .container {
+      max-width: 500px;
+      padding-top: 50px;
+    }
+
+    .toggle-icon {
+      position: absolute;
+      top: 50%;
+      right: 1rem;
+      transform: translateY(-50%);
+      cursor: pointer;
+    }
+
+    .theme-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      cursor: pointer;
+      background: blue;
+      border: 2px solid currentColor;
+      border-radius: 8%;
+      padding: 0.5rem 0.7rem;
+      font-size: 1rem;
+      color: white;
+    }
+  </style>
 </head>
-<body class="bg-light">
-    <div class="container text-center mt-5" style="color: white; font-size: large; font-weight: bolder;">
-        <h3>ENTER PIN</h3>
+<body>
+  <button class="theme-toggle" onclick="toggleTheme()">🌓 Toggle Theme</button>
 
-        <!-- Flash Messages -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="mb-3">
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category }}" role="alert">
-                            {{ message }}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+  <div class="container text-center">
+    <h3 class="mb-4">ENTER PIN</h3>
 
-        <!-- Warning for all exam modes -->
-        <div class="alert alert-warning" role="alert">
-            Note: Carefully enter your generated PIN because you will be blocked from accessing the exam for 24 hours after 5 incorrect PIN attempts.
-        </div>
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
 
-        <form id="postutmePinForm" action="/verify_postutme_pin" method="POST" class="mt-3 d-flex flex-column align-items-center">
-    <div class="input-wrapper small-input mb-3">
-        <input type="password" name="pin" id="pinInput" placeholder="Enter PIN" class="form-control visibility-toggle" required>
-        <span class="toggle-icon" onclick="toggleVisibility(this)">👁️</span>
+    <div class="alert alert-warning">
+      Note: Carefully enter your generated PIN. You’ll be blocked for 24 hours after 5 incorrect attempts.
     </div>
 
-    <button type="submit" class="btn btn-warning"
-        {% if blocked_until and blocked_until > current_time %}
-            disabled
-        {% endif %}
-    >Enter</button>
-</form>
-        {% if blocked_until and blocked_until > current_time %}
-            <div class="alert alert-danger mt-3" role="alert">
-                You are blocked from accessing POST-UTME until {{ blocked_until }}.
-            </div>
-        {% endif %}
+    {% if blocked_until and blocked_until > current_time %}
+      <div class="alert alert-danger">You are blocked until {{ blocked_until }}.</div>
+    {% endif %}
 
-        <div class="mt-3">
-            <a href="/dashboard" class="btn btn-secondary">Back to Dashboard</a>
-        </div>
-    </div>
+    <form id="pinForm" method="POST" action="/verify_postutme_pin">
+      <div class="mb-3 position-relative" style="max-width: 250px; left: 25%;">
+        <input type="password" name="pin" class="form-control" id="pinInput" placeholder="Enter PIN" required
+          {% if blocked_until and blocked_until > current_time %} disabled {% endif %}/>
+        <span class="toggle-icon" onclick="toggleVisibility()">👁</span>
+      </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            if (!localStorage.getItem("device_id")) {
-                localStorage.setItem("device_id", self.crypto.randomUUID());
-            }
+      <input type="hidden" name="device_id" id="deviceIdInput" />
 
-            const form = document.getElementById("postutmePinForm");
-            if (form) {
-                form.addEventListener("submit", function () {
-                    const input = document.createElement("input");
-                    input.type = "hidden";
-                    input.name = "device_id";
-                    input.value = localStorage.getItem("device_id");
-                    this.appendChild(input);
-                });
-            }
-        });
-    </script>
-{% endblock %}
+      <button type="submit" class="btn btn-warning w-100" style="max-width: 350px; left: 30%;"
+        {% if blocked_until and blocked_until > current_time %} disabled {% endif %}>
+        Enter
+      </button>
+    </form>
+
+    <a href="/dashboard" class="btn btn-secondary mt-4 w-100" style="max-width: 350px; left: 30%;">Back to Dashboard</a>
+  </div>
+  <footer>
+    <p class="footer-text" style="font-size: larger; font-weight: bolder; text-align: center;">Developed by Medic Adrenaline</p>
+  </footer>
+
+  <script>
+    // Set device ID
+    if (!localStorage.getItem("device_id")) {
+      localStorage.setItem("device_id", crypto.randomUUID());
+    }
+    document.getElementById("deviceIdInput").value = localStorage.getItem("device_id");
+
+    // Load saved theme
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme) root.setAttribute("data-theme", savedTheme);
+
+    // Toggle theme
+    function toggleTheme() {
+      const newTheme = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+      root.setAttribute("data-theme", newTheme);
+      localStorage.setItem("theme", newTheme);
+    }
+
+    // Toggle password visibility
+    function toggleVisibility() {
+      const pin = document.getElementById("pinInput");
+      pin.type = pin.type === "password" ? "text" : "password";
+    }
+  </script>
 </body>
 </html>

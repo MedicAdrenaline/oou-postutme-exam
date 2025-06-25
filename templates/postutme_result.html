@@ -17,25 +17,6 @@ body {
   background-color: #121212 !important;
   color: #e0e0e0 !important;
 }
-
-/* Example for sections/containers */
-.dark-mode .your-container-class {
-  background-color: #1e1e1e !important;
-  color: #e0e0e0 !important;
-}
-
-/* Button Styles */
-.toggle-container button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-}
-.toggle-container button:hover {
-  background-color: #0056b3;
-}
     body {
       background: #f8f9fa;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -68,17 +49,39 @@ body {
     .btn-lg {
       min-width: 160px;
     }
+    .theme-toggle {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      z-index: 999;
+    }
+
+    .theme-toggle button {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    .theme-toggle button:hover {
+      background-color: #0056b3;
+    }
   </style>
 </head>
 <body>
   <div class="container my-5">
-    <div class="text-center mb-4">
-      <h1 class="display-4 fw-bold">YOUR EXAM RESULT — View Your Performance</h1>
-      <p class="text-muted">
-        <i class="bi bi-calendar-event"></i> Date: <span id="exam-date">{{ exam_date }}</span> |
-        <i class="bi bi-person-circle"></i> User: <span id="username">{{ username }}</span>
-      </p>
-    </div>
+  <div class="text-center mb-4">
+    <h1 class="display-5 fw-bold">YOUR EXAM RESULT — View Your Performance</h1>
+    <p class="text-muted">
+      <i class="bi bi-calendar-event" style="color: blue;"></i>
+      <span style="color: blue; font-style: italic; font-weight: bolder;">Date: {{ exam_date }}</span> |
+      <i class="bi bi-person-circle" style="color: blue;"></i>
+      <span style="color: blue; font-style: italic;  font-weight: bolder;">User: {{ username }}</span>
+    </p>
+  </div>
+</div>
 
     <!-- Combined Performance Summary and Scores by Subject -->
     <div class="card p-4 mb-5 bg-white">
@@ -184,10 +187,11 @@ body {
       <a href="/postutme_dashboard" class="btn btn-secondary btn-lg px-4" id="start-new-exam-btn">Start New Exam</a>
     </div>
     <div class="form-container">
-  <a href="/aggregate-calculator" style="position: fixed; top: 25%; right: 5%; z-index: 9999; color: black; text-decoration: underline; font-size: x-large; font-weight: bolder;">Calculate your aggregate here</a>
-</div>
-    <div class="text-center text-muted big mb-3">Developed by Medic Adrenaline</div>
-  </div>
+  <a href="/aggregate-calculator" style="position: absolute; top: 35%; right: 3%; z-index: 9999; color: darkblue; text-decoration: underline; font-size: large; font-weight: bolder;">Calculate your aggregate here</a>
+ <footer>
+    <p class="footer-text" style="font-size: larger; font-weight: bolder; text-align: center;">Developed by Medic Adrenaline</p>
+  </footer>
+
 
   <script>
     document.getElementById('start-new-exam-btn').addEventListener('click', () => {
@@ -210,8 +214,8 @@ window.onload = () => {
 };    
   </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <div class="toggle-container text-end p-3">
-  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
-</div>
+  <div class="theme-toggle">
+    <button onclick="toggleMode()">🌙Toggle Theme</button>
+  </div>
 </body>
 </html>

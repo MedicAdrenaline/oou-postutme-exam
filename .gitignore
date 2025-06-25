@@ -323,7 +323,6 @@ celerybeat.pid
 
 # Environments
 .env
-config.py
 seed.py
 create_tables.py
 create_admins.py

@@ -1,66 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>POSTUTME Subject Selection</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <style>
-        /* Light/Dark Theme Transitions */
-body {
-  transition: background-color 0.3s, color 0.3s;
-}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>POSTUTME Subject Selection</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+  body {
+    transition: background-color 0.3s, color 0.3s;
+    background-color: #ffffff;
+    color: #000000;
+  }
 
-/* Dark Mode Body */
-.dark-mode {
-  background-color: #121212 !important;
-  color: #e0e0e0 !important;
-}
+  .dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+  }
 
-/* Example for sections/containers */
-.dark-mode .your-container-class {
-  background-color: #1e1e1e !important;
-  color: #e0e0e0 !important;
-}
+  /* Ensure inner containers adapt in dark mode */
+  .dark-mode .container,
+  .dark-mode .subjects-list label,
+  .dark-mode h4,
+  .dark-mode h5,
 
-/* Button Styles */
-.toggle-container button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 8px;
-  background-color: #007bff;
-  color: white;
-  cursor: pointer;
-}
-.toggle-container button:hover {
-  background-color: #0056b3;
-}
-        body { background-color: rgb(255, 255, 255); }
-        .container { margin-top: 40px; max-width: 800px;}
-        .quote { font-style: italic; margin-bottom: 20px; text-align: center; color: black; font-size: larger; font-weight: bolder; }
-        .subjects-list label { font-size: 1.2em; }
-        .subjects-list input[type="checkbox"] { transform: scale(1.4); margin-right: 10px; }
-        .english-locked { font-weight: bold; color: #f700ff; }
-        .start-btn { width: 50%; right: 50px }
-        .action-buttons {
-            display: flex;
-            justify-content: flex-start;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .exam-actions {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-        }
-    </style>
+  .dark-mode .footer-text {
+    background-color: transparent !important;
+    color: #e0e0e0 !important;
+  }
+
+  /* Keep Bootstrap button colors intact */
+  .btn {
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  .dark-mode .btn {
+    color: #fff;
+  }
+
+  .dark-mode .btn-secondary {
+    background-color: #6c757d;
+    border-color: #6c757d;
+  }
+
+  .quote {
+    font-style: italic;
+    margin-bottom: 20px;
+    text-align: center;
+    font-size: larger;
+    font-weight: bolder;
+    color: inherit;
+  }
+
+  .subjects-list label {
+    font-size: 1.2em;
+  }
+
+  .subjects-list input[type="checkbox"] {
+    transform: scale(1.4);
+    margin-right: 10px;
+  }
+
+  .english-locked {
+    font-weight: bold;
+    color: #f700ff;
+  }
+
+  .start-btn {
+    width: 50%;
+    right: 50px;
+  }
+
+  .action-buttons {
+    display: flex;
+    justify-content: flex-start;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .exam-actions {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+  }
+    .theme-toggle {
+      position: relative;
+      top: 15px;
+      right: 15px;
+      z-index: 999;
+    }
+
+    .theme-toggle button {
+      padding: 5px 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+
+    .theme-toggle button:hover {
+      background-color: #0056b3;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-    <h4 class="text-center mb-4" style="color: black; font-size: x-large; font-weight: bolder;">
-        SELECT SUBJECT(max:4). 
-    It's a good practice to always select at least 3 subjects(Utme combination) + English, then GK(optional) as it's a 30mins Exam. This trains you to be time-conscious</h4>
-    <!-- Flash messages -->
+  <div class="theme-toggle">
+    <button onclick="toggleMode()">🌙Toggle Theme</button>
+  </div>
+
+  <div class="container">
+    <h4 class="text-center mb-4" style="color: black; font-size: larger; font-weight: bolder; 
+    font-family: 'Courier New', Courier, monospace; font-style: italic;">
+      SELECT SUBJECT (max: 4).<br>
+      Select 4 other subjects (UTME combinations) + General Knowledge(Optional)
+    </h4>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         <div class="mt-3">
@@ -74,45 +128,47 @@ body {
       {% endif %}
     {% endwith %}
 
-
     <form id="subjectForm" action="{{ url_for('postutme_dashboard') }}" method="POST">
-  <div class="subjects-list mb-3">
-    <label><input type="checkbox" name="subjects" value="English" checked disabled /> English</label><br />
-    <label><input type="checkbox" name="subjects" value="Mathematics" /> Mathematics</label><br />
-    <label><input type="checkbox" name="subjects" value="Chemistry" /> Chemistry</label><br />
-    <label><input type="checkbox" name="subjects" value="Physics" /> Physics</label><br />
-    <label><input type="checkbox" name="subjects" value="Biology" /> Biology</label><br />
-    <label><input type="checkbox" name="subjects" value="Agriculture" /> Agriculture</label><br />
-    <label><input type="checkbox" name="subjects" value="Government" /> Government</label><br />
-    <label><input type="checkbox" name="subjects" value="General Knowledge" /> General Knowledge</label><br />
-  </div>
+      <div class="subjects-list mb-3">
+        <label><input type="checkbox" name="subjects" value="English" checked disabled /> English</label><br />
+        <label><input type="checkbox" name="subjects" value="Mathematics" /> Mathematics</label><br />
+        <label><input type="checkbox" name="subjects" value="Chemistry" /> Chemistry</label><br />
+        <label><input type="checkbox" name="subjects" value="Physics" /> Physics</label><br />
+        <label><input type="checkbox" name="subjects" value="Biology" /> Biology</label><br />
+        <label><input type="checkbox" name="subjects" value="Agriculture" /> Agriculture</label><br />
+        <label><input type="checkbox" name="subjects" value="Government" /> Government</label><br />
+        <label><input type="checkbox" name="subjects" value="General Knowledge" /> General Knowledge</label><br />
+      </div>
 
-  <!-- Hidden input to ensure English gets submitted -->
-  <input type="hidden" name="subjects" value="English" />
+      <input type="hidden" name="subjects" value="English" />
 
-  <button type="submit" class="btn btn-primary start-btn" id="start-new-exam-btn">🆕 Start New Exam</button>
-</form>
-
-    <div class="mt-3 container">
-    {% if result %}
+      <button type="submit" class="btn btn-primary start-btn" id="start-new-exam-btn">🆕 Start New Exam</button>
+    </form>
+<div class="mt-3 container">
+      {% if result %}
         <h5>Retake Last Exam</h5>
         <form action="{{ url_for('retake_postutme_exam') }}" method="POST">
-            <button type="submit" class="btn btn-success w-60" id="retake-exam-btn">🔁 Retake Last Exam</button>
+          <button type="submit" class="btn btn-success w-60" id="retake-exam-btn">🔁 Retake Last Exam</button>
         </form>
         <a href="{{ url_for('postutme_result', result_id=result.id) }}" class="btn btn-info w-60 mt-3">📊 View Last Result</a>
-    {% else %}
+      {% else %}
         <div class="alert alert-info text-center" role="alert">
-            No previous POSTUTME attempts found.
+          No previous POSTUTME attempts found.
         </div>
-    {% endif %}
-</div>
+      {% endif %}
+    </div>
 
-<div class="mt-3 container" style="background-size: 0%;">
-    <a href="/dashboard" class="btn btn-secondary w-100">Back to Dashboard</a>
-</div>
+    <div class="mt-3 container" style="background-size: 0%;">
+      <a href="/dashboard" class="btn btn-secondary w-100">Back to Dashboard</a>
+    </div>
+  </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
+  <footer>
+    <p class="footer-text" style="font-size: larger; font-weight: bolder; text-align: center;">Developed by Medic Adrenaline</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
     // Validate subject selection before submitting
     const form = document.getElementById('subjectForm');
     form.addEventListener('submit', function(event) {
@@ -178,22 +234,17 @@ body {
             history.pushState({ page: 'forward' }, '', window.location.href);
         }
     });
-  function toggleMode() {
-  const isDark = document.body.classList.toggle("dark-mode");
-  localStorage.setItem("theme", isDark ? "dark" : "light");
-}
-window.onload = () => {
-  const savedTheme = localStorage.getItem("theme");
-  if (savedTheme === "dark") {
-    document.body.classList.add("dark-mode");
-  }
-}; 
-</script>
-<div class="toggle-container text-end p-3">
-  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
-</div>
-<footer>
-        <p class="footer-text" style="font-size: larger; font-weight: bolder; text-align: center;">Developed by Medic Adrenaline</p>
-    </footer>
+    function toggleMode() {
+      const isDark = document.body.classList.toggle("dark-mode");
+      localStorage.setItem("theme", isDark ? "dark" : "light");
+    }
+
+    window.onload = () => {
+      const savedTheme = localStorage.getItem("theme");
+      if (savedTheme === "dark") {
+        document.body.classList.add("dark-mode");
+      }
+    };
+  </script>
 </body>
 </html>

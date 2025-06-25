@@ -17,7 +17,8 @@
 
     <form method="POST">
         <div class="form-group">
-            <label for="otp" style="color: blue; font-size: x-large;">Please enter the OTP sent to your Email Address</label>
+            <label for="otp" style="color: black; font-size: x-large; font-family: 'Courier New', Courier, monospace;"
+            >Please enter the OTP sent to your Email Address</label>
             <input mode="text" name="otp" id="otp" maxlength="6" class="form-control" required placeholder="Enter 6-digit OTP">
         </div>
 
@@ -26,7 +27,7 @@
 
     <div class="mt-4">
         <p class="small" style="color: darkblue;">Didn't receive the OTP? <a href="{{ url_for('resend_otp') }}"
-            style="color: black; font-size: x-large; font-weight: bolder;">Resend OTP</a></p>
+            style="color: black; font-size: large; font-weight: bolder;">Resend OTP</a></p>
     </div>
 
     {% if session.get('pending_user_id') %}
@@ -34,7 +35,7 @@
     {% endif %}
 
     <p class="switch-link mt-3" style="color: darkblue; font-size: x-large; font-weight: bold;">
-        Already verified? <a href="{{ url_for('login') }}" style="color: black; font-size: x-large; 
+        Already verified? <a href="{{ url_for('login') }}" style="color: black; font-size: large; 
         font-weight: bolder; text-decoration: underline;">Go to Login</a>
     </p>
 </div>
