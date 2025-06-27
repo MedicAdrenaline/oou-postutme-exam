@@ -21,11 +21,13 @@ from sqlalchemy.exc import IntegrityError
 import app 
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
+now = datetime.utcnow
 from app import app
 import openai, requests, wolframalpha
 from transformers import pipeline  
 from openai import OpenAI
 from sqlalchemy import text
+from schools import SCHOOL_NAME
 
 
 app = Flask(__name__)
@@ -42,6 +44,14 @@ login_manager.login_view = "admin_login"
 def load_user(user_id):
     print("user id:", user_id)
     return User.query.get(int(user_id))
+UPLOAD_FOLDER = 'static/uploads/pqs'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+UPLOAD_FOLDER = 'static/uploads/pqs'
+ALLOWED_EXTENSIONS = {'pdf'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ====== #
 # MODELS #
@@ -74,7 +84,8 @@ class User(UserMixin, db.Model):
     reset_token = db.Column(db.String(128), nullable=True)
     reset_token_expiration = db.Column(db.DateTime, nullable=True)
     last_attempt_time = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    school = db.Column(db.String(100), nullable=False)
     
 class Pin(db.Model):
     __tablename__ = 'pins'
@@ -84,9 +95,10 @@ class Pin(db.Model):
     is_used = db.Column(db.Boolean, default=False)
     device_id = db.Column(db.String(255), nullable=True)
     exam_mode = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=False)
     user = db.relationship('User', backref=db.backref('pins', lazy=True))
+    school = db.Column(db.String(100), nullable=False)
 
 class UserExamSession(db.Model):
     __tablename__ = 'user_exam_session'
@@ -95,7 +107,7 @@ class UserExamSession(db.Model):
     subject = db.Column(db.String(200), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     question_ids = db.Column(db.Text, nullable=False)  # comma-separated question IDs
-    timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref='exam_sessions')
 
 # Question model
@@ -112,7 +124,8 @@ class Question(db.Model):
     option_d = db.Column(db.String(255), nullable=False)
     correct_option = db.Column(db.String(1), nullable=False)
     explanation = db.Column(db.Text, nullable=True)  # explanation text
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    school = db.Column(db.String(100), nullable=False)
 
 class ExamAttempt(db.Model):
     __tablename__ = 'exam_attempts'
@@ -126,7 +139,7 @@ class ExamAttempt(db.Model):
     status = db.Column(db.String(20), default='ongoing')  # 'ongoing' or 'submitted'
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref='exam_attempts')
-    submitted_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_retake = db.Column(db.Boolean, default=False)
 
 class QuestionAttempt(db.Model):
@@ -136,7 +149,7 @@ class QuestionAttempt(db.Model):
     question_id = db.Column(db.Integer, db.ForeignKey('questions.id'), nullable=False)
     exam_mode = db.Column(db.String(100), nullable=False)
     subject = db.Column(db.String(200), nullable=False)
-    timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     selected_option = db.Column(db.String(1), nullable=True)
     is_correct = db.Column(db.Boolean, nullable=True)
 
@@ -151,7 +164,7 @@ class ExamResult(db.Model):
     percentage = db.Column(db.Float, nullable=False)
     subject_scores = db.Column(db.Text, nullable=True)  # JSON string
     selected_subjects = db.Column(db.Text, nullable=True) # NEW: JSON string of selected subject
-    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class DonatedPQ(db.Model):
     __tablename__ = 'donated_pq'  # Note: needs double underscores for SQLAlchemy to recognize it
@@ -162,23 +175,8 @@ class DonatedPQ(db.Model):
     exam_type = db.Column(db.String(50), nullable=False)
     filename = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    upload_date = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow)
     device_id = db.Column(db.String(100), nullable=False)  # ✅ Add this line
-
-class ChatHistory(db.Model):
-    __tablename__ = 'chat_history'  # optional, for explicit naming
-    id = db.Column(db.Integer, primary_key=True)
-    user = db.Column(db.String(100))  # e.g., device_id or user ID
-    role = db.Column(db.String(10))  # 'user' or 'ai'
-    message = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
-class CommonQueries(db.Model):
-    __tablename__ = 'common_queries'
-    id = db.Column(db.Integer, primary_key=True)
-    intent = db.Column(db.String(500), unique=True, nullable=False)
-    count = db.Column(db.Integer, default=1)
-    last_asked = db.Column(db.DateTime, default=datetime.utcnow)
 
 class AdmissionUpdate(db.Model):
     __tablename__ = 'updates'
@@ -190,6 +188,7 @@ class AdmissionUpdate(db.Model):
     likes = db.Column(db.Integer, default=0)
     comments = db.relationship('Comment', backref='update', lazy=True)
     reactions = db.relationship('PostReaction', backref='update', lazy=True)
+    image_filename = db.Column(db.String(120))
 
 class Comment(db.Model):
     __tablename__ = 'comments'
@@ -266,8 +265,8 @@ def postutme_instructions():
 def courses_cutoff():
     return render_template('courses_cutoff.html')
 
-@app.route('/aggregate-calculator', methods=['GET', 'POST'])
-def aggregate_calculator():
+@app.route('/oou-aggregate-calculator', methods=['GET', 'POST'])
+def oou_aggregate_calculator():
     aggregate = None
     error = None
     if request.method == 'POST':
@@ -280,16 +279,7 @@ def aggregate_calculator():
                 error = "JAMB score must be between 0–400 and Post-UTME between 0–100."
         except ValueError:
             error = "Please enter valid numbers."
-    return render_template("aggregate_calculator.html", aggregate=aggregate, error=error)
-
-UPLOAD_FOLDER = 'static/uploads/pqs'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-UPLOAD_FOLDER = 'static/uploads/pqs'
-ALLOWED_EXTENSIONS = {'pdf'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return render_template("oou_aggregate_calculator.html", aggregate=aggregate, error=error)
 
 @app.route('/donate_pq', methods=['GET', 'POST'])
 def donate_pq():
@@ -374,7 +364,7 @@ def register():
             db.session.commit()
         otp = random.randint(100000, 999999)
         hashed_pw = generate_password_hash(password)
-        new_user = User(username=username, email=email, password=hashed_pw, otp=otp)
+        new_user = User(username=username, email=email, password=hashed_pw, otp=otp, school=SCHOOL_NAME)
         db.session.add(new_user)
         db.session.commit()
         send_otp_email(email, otp)
@@ -421,23 +411,32 @@ def resend_otp():
     return redirect(url_for('verify_otp'))
 
 
+from schools import SCHOOL_NAME
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username_or_email = request.form.get('username_or_email')
         password = request.form.get('password')
+
         if not username_or_email or not password:
             flash('Please fill out both fields.', 'error')
             return redirect(url_for('login'))
-    # Authenticate the user by username or email
-        user = User.query.filter((User.username == username_or_email) | (User.email == username_or_email)).first()
-    # Check if the user exists and the password is correct
+
+        # Only fetch users that match the current school
+        user = User.query.filter(
+            ((User.username == username_or_email) | (User.email == username_or_email)) &
+            (User.school == SCHOOL_NAME)
+        ).first()
+
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
             flash('Login successful!', 'success')
             return redirect(url_for('dashboard'))
-        flash('Invalid username or password.', 'error')
+
+        flash('Invalid login details.', 'error')
         return redirect(url_for('login'))
+
     return render_template('login.html')
 
 # Function to generate a random OTP
@@ -653,12 +652,11 @@ def is_blocked_for_exam(user, exam_mode):
     blocked_until = user.blocked_modes.get(exam_mode)
     if blocked_until and isinstance(blocked_until, str):
         blocked_until = datetime.fromisoformat(blocked_until)
-        if blocked_until.tzinfo is None: # Make it timezone-aware (UTC)
-            blocked_until = blocked_until.replace(tzinfo=timezone.utc)
+        if blocked_until.tzinfo:  # Remove timezone if it exists
+            blocked_until = blocked_until.replace(tzinfo=None)
     if blocked_until and blocked_until > datetime.utcnow():
         return True, blocked_until
     return False, None
-
 
 @app.route('/exam/postutme', methods=['GET', 'POST'])
 def postutme_exam():
@@ -680,41 +678,44 @@ def postutme_exam():
 # PIN Verification Function   #
 # =========================== #
 def verify_pin(pin, device_id, exam_mode, user):
-    # Check if the exam mode is blocked (blocked_until is a datetime or False)
     blocked_until = user.blocked_modes.get(exam_mode)
     if blocked_until and isinstance(blocked_until, str):
-        # If stored as string in DB, parse back to datetime
         blocked_until = datetime.fromisoformat(blocked_until)
+        if blocked_until.tzinfo:
+            blocked_until = blocked_until.replace(tzinfo=None)
     if blocked_until and blocked_until > datetime.utcnow():
         flash(f"You are blocked from accessing {exam_mode.upper()} until {blocked_until}.", "error")
         return False
+
     pin_entry = Pin.query.filter_by(pin_code=pin, exam_mode=exam_mode).first()
     attempts = user.pin_attempts.get(exam_mode, 0)
-    if not pin_entry:
+
+    if not pin_entry or pin_entry.school != SCHOOL_NAME:
         attempts += 1
         user.pin_attempts[exam_mode] = attempts
         if attempts >= 5:
-            block_duration = timedelta(hours=24)
-            block_time = datetime.utcnow() + block_duration
+            block_time = datetime.utcnow() + timedelta(hours=24)
             user.blocked_modes[exam_mode] = block_time.isoformat()
             flash(f"You are now blocked from {exam_mode.upper()} for 24 hours due to multiple incorrect attempts.", "error")
         else:
-            remaining_attempts = 5 - attempts
-            flash(f"Invalid PIN. Attempts left: {remaining_attempts}", "error")
+            flash(f"Invalid PIN. Attempts left: {5 - attempts}", "error")
         db.session.commit()
         return False
-    # Successful PIN: reset attempts and unblock
+
     user.pin_attempts[exam_mode] = 0
     user.blocked_modes[exam_mode] = False
+
     if not pin_entry.device_id:
         pin_entry.device_id = device_id
         pin_entry.is_used = True
         db.session.commit()
         flash("PIN verified and locked to your device.", "success")
         return True
+
     if pin_entry.device_id == device_id:
         flash("PIN verified.", "success")
         return True
+
     flash("PIN already used on another device.", "error")
     return False
 
@@ -769,11 +770,12 @@ def postutme_dashboard():
                 num_questions = 10
                 all_qs = Question.query.filter(
                     func.lower(Question.subject) == subject.lower(),
-                    Question.exam_mode == 'POSTUTME'
+                    Question.exam_mode == 'POSTUTME',
+                    Question.school == SCHOOL_NAME  # filter by school
                 ).all()
 
                 if len(all_qs) < num_questions:
-                    flash(f"Not enough questions for {subject}. Please try again later.", "danger")
+                    flash(f"Not enough questions for {subject} in {SCHOOL_NAME}. Please try again later.", "danger")
                     return redirect(url_for('postutme_dashboard'))
 
                 random.shuffle(all_qs)
@@ -836,7 +838,13 @@ def postutme_exam_page():
             flash(f"No questions found for {subject}.", "danger")
             return redirect(url_for('postutme_dashboard'))
 
-        q_list = Question.query.filter(Question.id.in_(q_ids)).all()
+        # Fetch only questions belonging to current school
+        q_list = Question.query.filter(
+            Question.id.in_(q_ids),
+            Question.school == SCHOOL_NAME
+        ).all()
+
+        # Maintain order of question IDs
         q_list_sorted = sorted(
             [q for q in q_list if q.id in q_ids],
             key=lambda q: q_ids.index(q.id)
@@ -1223,7 +1231,7 @@ def postutme_past_results():
             exam_duration = str(duration).split('.')[0]
             exam_date = attempt.submitted_at.strftime('%d %B %Y')
         else:
-            exam_duration = "N/A"
+            exam_duration = str(duration).split('.')[0]
             exam_date = result.created_at.strftime('%d %B %Y')
 
         result_data.append({
@@ -1237,133 +1245,10 @@ def postutme_past_results():
     return render_template('postutme_past_results.html', result_data=result_data, result=result if last_results else None)
 
 
-#ADRENA AI
-# Initialize OpenAI client once
-client = OpenAI(api_key=app.config['OPENAI_API_KEY'])
-# API keys
-openai.api_key = app.config['OPENAI_API_KEY']
-wolfram_client = wolframalpha.Client(app.config['WOLFRAM_APP_ID'])
-hugging_model = None  # Global variable for caching the model
-
-# Define intents and detection function at the top of your file
-INTENTS = {
-    "greeting": ['hello', 'hi', 'how are you doing', 'who are you', 'hey', 'good morning', 'good afternoon', 'good evening'],
-    "explanation": ['explain', 'what is', 'define', 'meaning of'],
-    "calculation": ['calculate', 'solve', 'evaluate', 'integrate', 'differentiate'],
-    "medical": ['treat', 'symptoms of', 'disease', 'drug', 'diagnose', 'cure'],
-    "farewell": ['bye', 'goodbye', 'see you', 'take care'],
-    "study": ['mnemonic', 'study tip', 'revise', 'summarise', 'summary'],
-}
-
-def detect_intent(user_input):
-    user_input = user_input.lower()
-    for intent, keywords in INTENTS.items():
-        if any(word in user_input for word in keywords):
-            return intent
-    return "general"
-
-# Route definition
+#  ADRENA AI ROUTE
 @app.route('/adrena-ai', methods=['GET', 'POST'])
 def adrena_ai():
-    global hugging_model
-    user_id = session.get('device_id', request.remote_addr)
-    user_input = request.form.get('user_input', '')
-    
-    if request.method == 'POST':
-        print("POST request received")
-        print("Form data:", request.form)
-        user_input = request.form['user_input']
-        response = ""
-        intent = detect_intent(user_input)
-
-        try:
-            # Update CommonQueries count
-            query = CommonQueries.query.filter_by(intent=intent).first()
-            if query:
-                query.count += 1
-            else:
-                query = CommonQueries(intent=intent, count=1)
-                db.session.add(query)
-            db.session.commit()
-
-            # Intent-based response
-            if intent == "calculation":
-                res = wolfram_client.query(user_input)
-                response = next(res.results).text
-
-            elif intent == "medical":
-                pub_url = f"https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term={user_input}&retmode=json"
-                data = requests.get(pub_url).json()
-                ids = data['esearchresult'].get('idlist', [])[:3]
-                response = f"Top PubMed IDs: {', '.join(ids)}" if ids else "No articles found."
-
-            elif intent == "greeting":
-                response = "Hey there! I’m Adrena AI. How can I help you today? Need study help, explanations, or a cool mnemonic?"
-
-            elif intent == "farewell":
-                response = "Goodbye! Don’t forget to revise what you’ve learned today 😊"
-
-            elif intent == "study":
-                response = "Here’s a quick study tip: Use mnemonics to improve memory. Want one for Biology or Physics?"
-
-            elif intent == "explanation" or app.config['OPENAI_API_KEY']:
-                completion = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": user_input}]
-                )
-                response = completion.choices[0].message.content
-
-            else:
-                if hugging_model is None:
-                    hugging_model = pipeline("text-generation", model="gpt2", max_new_tokens=100)
-                result = hugging_model(user_input)
-                response = result[0]['generated_text']
-
-        except Exception as e:
-            print(f"Error: {e}")
-            response = "I no sabi that one yet ooh..."
-
-        # Save conversation
-        db.session.add(ChatHistory(user=user_id, role='user', message=user_input))
-        db.session.add(ChatHistory(user=user_id, role='ai', message=response))
-        db.session.commit()
-        return jsonify({"response": response})
-
-    # GET method: return past chat history
-    history_records = ChatHistory.query.filter_by(user=user_id).order_by(ChatHistory.timestamp).all()
-    history = [{"user": r.message} if r.role == 'user' else {"ai": r.message} for r in history_records]
-    formatted = []
-    user_msg = None
-    for entry in history:
-        if "user" in entry:
-            user_msg = entry["user"]
-        elif "ai" in entry and user_msg:
-            formatted.append({"user": user_msg, "ai": entry["ai"]})
-            user_msg = None
-    return render_template("adrena_ai.html", history=formatted)
-
-@app.route('/admin/chat-history')
-def admin_chat_history():
-    user_id = session.get('device_id', request.remote_addr)
-    records = ChatHistory.query.filter_by(user=user_id).order_by(ChatHistory.timestamp).all()
-    # Group by date
-    grouped_history = defaultdict(list)
-    user_msg = None
-    for r in records:
-        date = r.timestamp.strftime('%Y-%m-%d')
-        if r.role == 'user':
-            user_msg = r.message
-        elif r.role == 'ai' and user_msg:
-            grouped_history[date].append({'user': user_msg, 'ai': r.message})
-            user_msg = None
-    return render_template('admin_chat_history.html', history=grouped_history)
-
-@app.route('/clear-chat', methods=['POST'])
-def clear_chat():
-    user_id = session.get('device_id', request.remote_addr)
-    ChatHistory.query.filter_by(user=user_id).delete()
-    db.session.commit()
-    return jsonify({"message": "Chat cleared"})
+    return render_template("adrena_ai.html")
 
 @app.route('/updates', methods=['GET', 'POST'])
 def updates():

@@ -25,7 +25,7 @@
         <div class="form-group">
             <label for="password" style="color: black;">Password</label>
             <div class="input-container">
-            <input mode="password" id="password" name="password" required required placeholder="Enter your Password">
+            <input mode="password" id="password" name="password" required required placeholder="Enter Password">
             <span class="toggle-icon" onclick="toggleVisibility(this)">👁</span>
         </div>
         </div>
@@ -33,12 +33,12 @@
         <button mode="submit" class="btn">Login</button>
     </form>
 
-    <p class="switch-link" style="color: darkblue; font-weight: bold; font-size: x-large;">
+    <p class="switch-link" style="color: darkblue; font-weight: bold; font-size: large;">
         Don't have an account? <a href="{{ url_for('register') }}" style="color: black; font-size: large;
          font-weight: bolder; text-decoration: underline;">Register here</a>
     </p>
 
-    <p class="switch-link-2" style="color: darkblue; font-weight: bold;">
+    <p class="switch-link-2" style="color: darkblue; font-weight: bold; font-size: large;">
         Forgot Password?<a href="{{ url_for('forgot_password') }}" style="color: black; font-size: large; 
         font-weight: bolder;">Reset Password</a>
     </p>

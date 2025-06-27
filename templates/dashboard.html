@@ -27,25 +27,32 @@
     }
 
     .marquee-container {
-      width: 100%;
-      overflow: hidden;
-      background-color: #222;
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      padding: 10px 0;
-    }
+  width: 100%;
+  overflow: hidden;
+  background-color: #222;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  padding: 10px 0;
+  white-space: nowrap;
+}
 
-    .marquee-content {
-      white-space: nowrap;
-      animation: scroll-left 20s linear infinite;
-      color: #fff;
-    }
+.marquee-content {
+  display: inline-block;
+  padding-left: 100%; /* Start fully outside */
+  animation: scroll-left 130s linear infinite;
+  color: #fff;
+  white-space: nowrap;
+}
 
-    @keyframes scroll-left {
-      from { transform: translateX(100%); }
-      to { transform: translateX(-100%); }
-    }
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
 
     .btn-join {
       font-size: large;
@@ -61,11 +68,18 @@
     }
 
     .top-fixed {
-      top: 7%;
+      top: 3%;
+      right: 2%;
+    }
+    .top-absolute {
+      top: 11%;
+      right: 2%;
     }
 
+
     .bottom-fixed {
-      bottom: 15%;
+      bottom: 8%;
+      right: 2%;
     }
 
     .light-mode {
@@ -81,6 +95,7 @@
     .section {
       text-align: center;
       margin-top: 30px;
+      margin-bottom: 30px;
     }
 
     h3 {
@@ -114,35 +129,36 @@
       <p>CONNECT WITH US ON OUR SOCIAL PLATFORMS</p>
       <p>For Intensive Brainstorming, Tutorials, and Admission Updates</p>
       <a href="https://chat.whatsapp.com/FmlWgWaqhW8E47ETK8oIwQ" class="btn btn-info btn-join">WhatsApp Community</a>
-      <a href="https://chat.whatsapp.com/LYXPM3T5MVzKHCbqk8JMCK" class="btn btn-info btn-join">Putme/Waec Group</a>
-      <a href="https://t.me/MedicAdrenaline1" class="btn btn-dark btn-join">Telegram Channel</a>
-      <a href="https://youtube.com/@medicadrenaline?si=uzfEhkBbUiXkh4d4" class="btn btn-danger btn-join">YouTube Channel</a>
+      <a href="https://whatsapp.com/channel/0029VbB2xxoJENy3SfawBT3a" class="btn btn-info btn-join">WhatsApp Channel</a>
+      <a href="https://chat.whatsapp.com/LYXPM3T5MVzKHCbqk8JMCK" class="btn btn-info btn-join">Putme Tutorial Group</a>
+      <a href="https://t.me/medicadrenalinechannel" class="btn btn-dark btn-join">Telegram Channel</a>
     </div>
   </div>
 
   <a href="{{ url_for('updates') }}" class="btn btn-outline-primary btn-fixed top-fixed">Admission Updates</a>
+  <a href="{{ url_for('adrena_ai') }}" class="btn btn-outline-primary btn-fixed top-absolute">Adrena AI</a>
   <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-fixed bottom-fixed">Logout</a>
 
   <div class="marquee-container">
     <div class="marquee-content">
-    Welcome to Medic Adrenaline Exam Practice Platform! -------------------------------------------
-    Keep pushing forward, you're doing great! -- Medic Adrenaline! -----------------------------------------------------------  
-    Success is no accident. It is hard work and learning. -- Medic Adrenaline! ----------------------------------------------------------  
-    Don't stop when you're tired. Stop when you're done. -- Medic Adrenaline! ---------------------------------------------------------  
-    Every expert was once a beginner. -- Medic Adrenaline! -----------------------------------------------------
-    Make today count! -- Medic Adrenaline! ------------------------------------------------------  
-    Stay focused and never give up! -- Medic Adrenaline! ------------------------------------------------------- 
-    You were born to win. -- Medic Adrenaline! ------------------------------------------------------ 
-    Study now, shine later. -- Medic Adrenaline! ------------------------------------------------------------  
-    Believe in yourself! -- Medic Adrenaline! ------------------------------------------------------ 
-    Consistency is the key to excellence. -- Medic Adrenaline! --------------------------------------------------- 
-    Sometimes those trying to bring you down don’t realize you are part of the reason they are still standing. --Medic Adrenaline! ---------------------------------------------------
-    Remember this: “PLUS THEM MINUS THEM, WE GONNA MAKE IT” -- They are not God. -- Medic Adrenaline ---------------------------------------------------
-    Don’t hurt others just because you are hurt. -- Medic Adrenaline ---------------------------------------------------
-    If you're giving your all to someone and it's not enough, you're giving it to the wrong person. -- Medic Adrenaline ---------------------------------------------------
-    He that talks much lies much.-- Medic Adrenaline ---------------------------------------------------
-    Stop hating sinners on behalf of GOD. Even GOD is wondering who sent you. --Medic Adrenaline ---------------------------------------------------
-    When you're fruitful, don’t mistake the admiration of men as love for YOU -- They only love the fruits. -- Medic Adrenaline ---------------------------------------------------
+    Welcome to Medic Adrenaline Exam Practice Platform! ------------------------------
+    Keep pushing forward, you're doing great! -- Medic Adrenaline! -------------------------------  
+    Success is no accident. It is hard work and learning. -- Medic Adrenaline! -----------------------------------  
+    Don't stop when you're tired. Stop when you're done. -- Medic Adrenaline! -------------------------------  
+    Every expert was once a beginner. -- Medic Adrenaline! -------------------------------
+    Make today count! -- Medic Adrenaline! -----------------------------
+    Stay focused and never give up! -- Medic Adrenaline! --------------------------------- 
+    You were born to win. -- Medic Adrenaline! -------------------------------- 
+    Study now, shine later. -- Medic Adrenaline! --------------------------------  
+    Believe in yourself! -- Medic Adrenaline! --------------------------------- 
+    Consistency is the key to excellence. -- Medic Adrenaline! ----------------------------- 
+    Sometimes those trying to bring you down don’t realize you are part of the reason they are still standing. --Medic Adrenaline! -----------------------------
+    Remember this: “PLUS THEM MINUS THEM, WE GONNA MAKE IT” -- They are not God. -- Medic Adrenaline! ---------------------------------
+    Don’t hurt others just because you are hurt. -- Medic Adrenaline ------------------------------------
+    If you're giving your all to someone and it's not enough, you're giving it to the wrong person. -- Medic Adrenaline --------------------------------
+    He that talks much lies much.-- Medic Adrenaline ------------------------------
+    Stop hating sinners on behalf of GOD. Even GOD is wondering who sent you. --Medic Adrenaline --------------------------------
+    When you're fruitful, don’t mistake the admiration of men as love for YOU -- They only love the fruits. -- Medic Adrenaline --------------------------------
     </div>
   </div>
 

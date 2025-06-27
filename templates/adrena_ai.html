@@ -1,396 +1,130 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Adrena-AI</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Adrenal AI — Coming Soon</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f0f2f5;
+    * {
+      box-sizing: border-box;
+      padding: 0;
       margin: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
     }
 
-    .chat-container {
-      flex: 1;
-      overflow-y: auto;
+    body {
+      background: #0d1117;
+      color: #f0f6fc;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
       padding: 20px;
-      display: flex;
-      flex-direction: column;
     }
 
-    .message {
-      padding: 10px 15px;
-      margin: 10px 0;
-      border-radius: 10px;
-      max-width: 75%;
-      word-wrap: break-word;
-      position: relative;
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border-top: 4px solid #58a6ff;
+      animation: spin 1s linear infinite;
+      margin-bottom: 30px;
     }
 
-    .timestamp {
-      font-size: 10px;
-      color: gray;
-      position: absolute;
-      bottom: -14px;
-      right: 10px;
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
-    .user {
-      align-self: flex-end;
-      background-color: #d1e7ff;
-      text-align: right;
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
     }
 
-    .ai {
-      align-self: flex-start;
-      background-color: #e2e3e5;
+    .typewriter span {
+      border-right: 2px solid #f0f6fc;
+      animation: blink 0.7s steps(1) infinite;
     }
 
-    .input-container {
-      display: flex;
-      padding: 10px;
-      background: white;
-      border-top: 1px solid #ccc;
+    @keyframes blink {
+      from { border-color: transparent; }
+      to { border-color: #f0f6fc; }
     }
 
-    input, button {
-      font-size: 16px;
-      padding: 10px;
-      border-radius: 8px;
+    p {
+      max-width: 600px;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #c9d1d9;
+      margin-top: 10px;
+      padding: 0 10px;
     }
 
-    input {
-      flex: 1;
-      border: 1px solid #ccc;
+    .footer {
+      margin-top: 40px;
+      font-size: 0.9rem;
+      color: #8b949e;
     }
 
-    button {
-      margin-left: 10px;
-      background-color: #007bff;
-      border: none;
-      color: white;
-      cursor: pointer;
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem;
+      }
+      p {
+        font-size: 1rem;
+      }
     }
 
-    button:hover {
-      background-color: #0056b3;
+    @media (max-width: 480px) {
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border-width: 3px;
+      }
     }
-
-    .mic-btn {
-      margin-left: 5px;
-      background-color: #28a745;
-    }
-
-    .mic-btn:hover {
-      background-color: #1e7e34;
-    }
-
-    .toggle-container button {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 8px;
-      background-color: #007bff;
-      color: white;
-      cursor: pointer;
-    }
-
-    .toggle-container button:hover {
-      background-color: #0056b3;
-    }
-
-    .dark-mode {
-      background-color: #121212;
-      color: #e0e0e0;
-    }
-
-    .dark-mode .chat-container {
-      background-color: #121212;
-    }
-
-    .dark-mode .user {
-      background-color: #004080;
-    }
-
-    .dark-mode .ai {
-      background-color: #2a2a2a;
-    }
-
-    .dark-mode .input-container {
-      background-color: #1e1e1e;
-    }
-    .container {
-            width: 100%;
-            max-width: 1200px;
-            margin: auto;
-            padding: 10px;
-            flex: 1;
-        }
-        
-.toast {
-  visibility: hidden;
-  min-width: 200px;
-  background-color: #333;
-  color: #fff;
-  text-align: center;
-  border-radius: 8px;
-  padding: 12px;
-  position: fixed;
-  z-index: 1;
-  right: 30px;
-  bottom: 30px;
-  font-size: 14px;
-  opacity: 0;
-  transition: opacity 0.5s ease, visibility 0.5s;
-}
-.toast.show {
-  visibility: visible;
-  opacity: 1;
-}
-
-
-        .header {
-            position: relative;
-            text-align: center;
-            padding: 4px 0 4px 0;
-            background-color: rgba(0, 0, 0, 0.801);
-            background-size: 5px;
-            animation: fadeInDown 1s ease;
-            font-size: 2rem;
-            overflow: hidden;
-            width: 20%;
-        }
-        .moving-text {
-            left: 1%;
-            display: inline-block;
-            white-space: nowrap;
-            font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
-            animation: slideRightToLeft 10s linear infinite;
-            font-weight: bolder;
-            padding: 2px 0 2px 0;
-            font-size: 24px;
-            color: #ffffff;
-            font-style: italic;
-          }
-          
   </style>
 </head>
-<body onload="document.getElementById('user_input').focus()">
-  <div id="toast" class="toast"></div>
-  <header class="header">
-    <h1 class="moving-text">HEY, I'M ADRENA AI </h1>
-    {% block subheader %}{% endblock %}
-    </header>
+<body>
 
-<div class="chat-container" id="chat-box">
-  {% for chat in history %}
-    <div class="message user">
-      <strong>You:</strong> {{ chat.user }}
-      <div class="timestamp">{{ chat.timestamp }}</div>
-    </div>
-    <div class="message ai">
-      {{ chat.ai }}
-      <div class="timestamp">{{ chat.ai_time }}</div>
-    </div>
-  {% endfor %}
-</div>
+  <div class="spinner"></div>
 
-<div class="input-container">
-  <input type="text" id="user_input" placeholder="Ask Adrena-AI..." autofocus>
-  <button onclick="sendMessage()">Send</button>
-  <button class="mic-btn" onclick="startVoice()">🎤</button>
-</div>
+  <h1 class="typewriter">Adrenal AI is <span id="typing"></span></h1>
 
-<div class="toggle-container text-end p-3">
-  <button onclick="toggleMode()">🌙 Toggle Dark Mode</button>
-  <button id="clearChatBtn">Clear Chat</button>
-</div>
+  <p>
+    Stay calm, stay focused — <strong>Adrenal AI</strong> is almost ready to change how students learn.
+    A smarter, smoother way to study is loading. Built with care for every curious mind. ✨
+  </p>
 
-<script>
-  // Clear Chat Function
-  function showToast(message) {
-  const toast = document.getElementById("toast");
-  toast.textContent = message;
-  toast.classList.add("show");
-  setTimeout(() => {
-    toast.classList.remove("show");
-  }, 3000);
-}
-  document.getElementById("clearChatBtn").onclick = function () {
-    if (confirm("Are you sure you want to clear the chat history?")) {
-      fetch('/clear-chat', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-          showToast(data.message);
-          location.reload();
-        })
-        .catch(err => {
-          showToast("Failed to clear chat: " + err.message);
-        });
-    }
-  };
+  <div class="footer">
+    &copy; 2025 Medic Adrenaline. All rights reserved.
+  </div>
 
-  // Auto-scroll & Theme persist
-  window.onload = () => {
-    const chatBox = document.getElementById("chat-box");
-    chatBox.scrollTop = chatBox.scrollHeight;
-  };
-  function appendMessage(text, role) {
-    const chatBox = document.getElementById("chat-box");
-    const msgDiv = document.createElement("div");
-    msgDiv.className = "message " + role;
+  <script>
+    const texts = ["loading...", "thinking...", "almost here...", "getting smarter..."];
+    let count = 0;
+    let index = 0;
+    let currentText = '';
+    let letter = '';
 
-    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    let messageHTML = "";
-    if (role === "user") {
-      messageHTML += `<strong>You:</strong> `;
-    }
-    messageHTML += `<span class="text">${text}</span><div class="timestamp">${timestamp}</div>`;
-    msgDiv.innerHTML = messageHTML;
+    (function type() {
+      if (count === texts.length) count = 0;
+      currentText = texts[count];
+      letter = currentText.slice(0, ++index);
 
-    chatBox.appendChild(msgDiv);
-    msgDiv.scrollIntoView({ behavior: "smooth" });
+      document.getElementById('typing').textContent = letter;
 
-    if (role === "ai") {
-      speak(text);
-    }
-  }
-
-  function showTypingIndicator() {
-    const chatBox = document.getElementById("chat-box");
-    const typingDiv = document.createElement("div");
-    typingDiv.className = "message ai typing-indicator";
-    typingDiv.id = "typing-indicator";
-    typingDiv.innerHTML = `<em>Adrena-AI is typing, reasoning >>2secs...</em>`;
-    chatBox.appendChild(typingDiv);
-    typingDiv.scrollIntoView({ behavior: "smooth" });
-  }
-
-  function removeTypingIndicator() {
-    const indicator = document.getElementById("typing-indicator");
-    if (indicator) {
-      indicator.remove();
-    }
-  }
-
-  function typeAiResponse(text) {
-    removeTypingIndicator();  // Remove indicator before typing
-
-    const chatBox = document.getElementById("chat-box");
-    const msgDiv = document.createElement("div");
-    msgDiv.className = "message ai";
-
-    const span = document.createElement("span");
-    msgDiv.appendChild(span);
-
-    const timestamp = document.createElement("div");
-    timestamp.className = "timestamp";
-    timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    msgDiv.appendChild(timestamp);
-
-    chatBox.appendChild(msgDiv);
-    msgDiv.scrollIntoView({ behavior: "smooth" });
-
-    let i = 0;
-    function typeChar() {
-      if (i < text.length) {
-        span.textContent += text.charAt(i++);
-        setTimeout(typeChar, 30);
+      if (letter.length === currentText.length) {
+        count++;
+        index = 0;
+        setTimeout(type, 1200);
       } else {
-        speak(text);
+        setTimeout(type, 100);
       }
-    }
-    typeChar();
-  }
+    })();
+  </script>
 
-  function sendMessage() {
-    const input = document.getElementById("user_input");
-    const userInput = input.value.trim();
-    if (!userInput) return;
-
-    appendMessage(userInput, "user");
-    input.value = "";
-    showTypingIndicator();
-
-    fetch("/adrena-ai", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "user_input=" + encodeURIComponent(userInput)
-    })
-    .then(response => response.json())
-    .then(data => {
-      typeAiResponse(data.response);
-    })
-    .catch(error => {
-      removeTypingIndicator();
-      appendMessage("Error: " + error.message, "ai");
-    });
-  }
-
-  function speak(text) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "en-US";
-    speechSynthesis.speak(utterance);
-  }
-
-  function toggleMode() {
-  const isDark = document.body.classList.toggle("dark-mode");
-  localStorage.setItem("theme", isDark ? "dark" : "light");
-}
-window.onload = () => {
-  const savedTheme = localStorage.getItem("theme");
-  if (savedTheme === "dark") {
-    document.body.classList.add("dark-mode");
-  }
-  const chatBox = document.getElementById("chat-box");
-  chatBox.scrollTop = chatBox.scrollHeight;
-};
-
-  function startVoice() {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
-    recognition.start();
-
-    recognition.onresult = function(event) {
-      const transcript = event.results[0][0].transcript;
-      document.getElementById("user_input").value = transcript;
-      sendMessage();
-    };
-
-    recognition.onerror = function(event) {
-      console.error("Speech recognition error:", event.error);
-    };
-  }
-
-  // Typing & Deleting Animation
-  const animatedText = "I'm Adrena AI, ask me anything...";
-  const textElement = document.getElementById("animated-text");
-  let idx = 0, isDeleting = false;
-
-  function typeHeader() {
-    if (isDeleting) {
-      textElement.textContent = animatedText.substring(0, idx--);
-      if (idx < 0) {
-        isDeleting = false;
-        setTimeout(typeHeader, 500);
-      } else {
-        setTimeout(typeHeader, 50);
-      }
-    } else {
-      textElement.textContent = animatedText.substring(0, idx++);
-      if (idx > animatedText.length) {
-        isDeleting = true;
-        setTimeout(typeHeader, 1000);
-      } else {
-        setTimeout(typeHeader, 100);
-      }
-    }
-  }
-  typeHeader();
-</script>
 </body>
 </html>
