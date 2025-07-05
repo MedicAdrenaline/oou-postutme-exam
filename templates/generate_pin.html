@@ -91,6 +91,7 @@
 
         .flash-info {
             background-color: #cce5ff;
+            color: black;
             padding: 0.8rem;
             margin-bottom: 1rem;
             border-radius: 5px;
@@ -144,7 +145,7 @@
         <form method="POST" action="{{ url_for('generate_pin') }}">
             <div class="form-container">
                 <label>
-                    <input type="checkbox" name="exam_mode" value="postutme">
+                    <input type="checkbox" name="exam_mode" value="postutme" checked>
                     <span style="font-style: italic; font-family: monospace; font-weight: bold; font-size: x-large;">Click the checkbox to proceed with Paystack (₦2000)</span>
                 </label>
             </div>

@@ -326,6 +326,7 @@ celerybeat.pid
 seed.py
 create_tables.py
 create_admins.py
+paystack.py
 .venv
 env/
 venv/
@@ -368,4 +369,6 @@ cython_debug/
 .ruff_cache/
 
 # PyPI configuration file
-.pypirc
+.pypircpaystack.py
+create_admin.py
+create_admin.py

@@ -747,41 +747,80 @@ def postutme_dashboard():
 
     if request.method == 'POST':
         selected_subjects = request.form.getlist('subjects')
-        if len(selected_subjects) > 5:
-            flash("You can only select up to 5 subjects at a time.", "danger")
+
+        # Ensure "English" is compulsory and only appears once
+        if 'English' in selected_subjects:
+            selected_subjects.remove('English')
+
+        if len(selected_subjects) < 3:
+            flash("You must select at least 3 subjects in addition to English (total of 4 subjects).", "danger")
+            return redirect(url_for('postutme_dashboard'))
+        elif len(selected_subjects) > 4:
+            flash("You can only select 3 subjects. English is compulsory and automatically added.", "danger")
             return redirect(url_for('postutme_dashboard'))
 
+        selected_subjects_full = ['English'] + selected_subjects
         retake = request.form.get('retake') == 'true'
-        selected_subjects_full = selected_subjects
+
+        # Save subject selection in session
         session['postutme_subjects'] = selected_subjects_full
-        session['current_subject'] = 'English'  # Default first subject if needed
+        session['current_subject'] = 'English'
         session.pop('postutme_answers', None)
 
         if not retake:
+            # Expire any existing ongoing attempt
             previous_attempt = ExamAttempt.query.filter_by(
-                user_id=user.id, exam_mode='POSTUTME', status='ongoing'
+                user_id=user.id,
+                exam_mode='POSTUTME',
+                status='ongoing'
             ).first()
             if previous_attempt:
                 previous_attempt.status = 'expired'
                 db.session.commit()
 
             questions_per_subject = {}
+
+            # Get all previous question IDs for each subject across past attempts
+            past_attempts = ExamAttempt.query.with_entities(ExamAttempt.questions_json).filter_by(
+                user_id=user.id,
+                exam_mode='POSTUTME'
+            ).all()
+
+            # Build used question ID mapping by subject
+            subject_used_ids = {}
+            for record in past_attempts:
+                if record[0]:  # if questions_json exists
+                    past_qs = json.loads(record[0])
+                    for subj, ids in past_qs.items():
+                        subject_used_ids.setdefault(subj, set()).update(ids)
+
             for subject in selected_subjects_full:
                 num_questions = 10
-                all_qs = Question.query.filter(
+
+                # Fetch all questions for that subject
+                all_questions = Question.query.filter(
                     func.lower(Question.subject) == subject.lower(),
                     Question.exam_mode == 'POSTUTME',
-                    Question.school == SCHOOL_NAME  # filter by school
+                    Question.school == SCHOOL_NAME
                 ).all()
 
-                if len(all_qs) < num_questions:
-                    flash(f"Not enough questions for {subject} in {SCHOOL_NAME}. Please try again later.", "danger")
+                # Filter out seen questions
+                seen_ids = subject_used_ids.get(subject, set())
+                unseen_questions = [q for q in all_questions if q.id not in seen_ids]
+
+                # If unseen is not enough, fallback to full pool
+                question_pool = unseen_questions if len(unseen_questions) >= num_questions else all_questions
+
+                if len(question_pool) < num_questions:
+                    flash(f"Not enough questions for {subject} in {SCHOOL_NAME}. Try again later.", "danger")
                     return redirect(url_for('postutme_dashboard'))
 
-                random.shuffle(all_qs)
-                selected_ids = [q.id for q in all_qs[:num_questions]]
+                # Shuffle and select
+                random.shuffle(question_pool)
+                selected_ids = [q.id for q in question_pool[:num_questions]]
                 questions_per_subject[subject] = selected_ids
 
+            # Save new attempt
             new_attempt = ExamAttempt(
                 user_id=user.id,
                 exam_mode='POSTUTME',
@@ -792,12 +831,10 @@ def postutme_dashboard():
             )
             db.session.add(new_attempt)
             db.session.commit()
-
             session['postutme_attempt_id'] = new_attempt.id
-
         flash("Start New Exam or Retake Last Exam Below", "success")
         return redirect(url_for('postutme_exam_page'))
-
+    # Handle GET: show last result
     last_result = ExamResult.query.filter_by(
         user_id=user.id,
         exam_mode='POSTUTME'
@@ -1157,7 +1194,7 @@ def postutme_leaderboard():
         # ✅ Use subject_scores to calculate correct score out of 10 per subject
         subject_scores = json.loads(result.subject_scores or '{}')
 # ✅ Skip if less than 5 subjects attempted
-        if len(subject_scores) < 5:
+        if len(subject_scores) < 4:
             continue
         raw_correct = sum(s['correct'] for s in subject_scores.values())
         total_possible = len(subject_scores) * 10

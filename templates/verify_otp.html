@@ -26,7 +26,7 @@
     </form>
 
     <div class="mt-4">
-        <p class="small" style="color: darkblue;">Didn't receive the OTP? <a href="{{ url_for('resend_otp') }}"
+        <p class="small" style="color: darkblue; font-size: large;">Didn't receive the OTP? <a href="{{ url_for('resend_otp') }}"
             style="color: black; font-size: large; font-weight: bolder;">Resend OTP</a></p>
     </div>
 
@@ -34,7 +34,7 @@
         <p>If you do not see the email, kindly check your spam folder.</p>
     {% endif %}
 
-    <p class="switch-link mt-3" style="color: darkblue; font-size: x-large; font-weight: bold;">
+    <p class="switch-link mt-3" style="color: darkblue; font-size: large; font-weight: bold;">
         Already verified? <a href="{{ url_for('login') }}" style="color: black; font-size: large; 
         font-weight: bolder; text-decoration: underline;">Go to Login</a>
     </p>
