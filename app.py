@@ -581,7 +581,7 @@ def initiate_paystack_payment(email, amount, reference):
         "email": email,
         "amount": amount * 100,
         "reference": reference,
-        "callback_url": "http://localhost:5000/payment_callback"
+        "callback_url": "https://adrena-oou-postutme-cbt.onrender.com/payment_callback"
     }
     response = requests.post("https://api.paystack.co/transaction/initialize", json=data, headers=headers)
     return response.json()
