@@ -372,3 +372,4 @@ cython_debug/
 .pypircpaystack.py
 create_admin.py
 create_admin.py
+paystack.py
