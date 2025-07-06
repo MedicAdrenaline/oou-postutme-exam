@@ -141,6 +141,7 @@ class ExamAttempt(db.Model):
     user = db.relationship('User', backref='exam_attempts')
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_retake = db.Column(db.Boolean, default=False)
+    school = db.Column(db.String(100), nullable=False)
 
 class QuestionAttempt(db.Model):
     __tablename__ = 'question_attempts'
@@ -165,6 +166,7 @@ class ExamResult(db.Model):
     subject_scores = db.Column(db.Text, nullable=True)  # JSON string
     selected_subjects = db.Column(db.Text, nullable=True) # NEW: JSON string of selected subject
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    school = db.Column(db.String(100), nullable=False)
 
 class DonatedPQ(db.Model):
     __tablename__ = 'donated_pq'  # Note: needs double underscores for SQLAlchemy to recognize it
@@ -772,7 +774,8 @@ def postutme_dashboard():
             previous_attempt = ExamAttempt.query.filter_by(
                 user_id=user.id,
                 exam_mode='POSTUTME',
-                status='ongoing'
+                status='ongoing',
+                school=SCHOOL_NAME
             ).first()
             if previous_attempt:
                 previous_attempt.status = 'expired'
@@ -827,7 +830,8 @@ def postutme_dashboard():
                 status='ongoing',
                 subjects=json.dumps(selected_subjects_full),
                 questions_json=json.dumps(questions_per_subject),
-                started_at=datetime.utcnow()
+                started_at=datetime.utcnow(),
+                school=SCHOOL_NAME
             )
             db.session.add(new_attempt)
             db.session.commit()
@@ -853,7 +857,7 @@ def postutme_exam_page():
     if not user:
         flash("Session expired. Please log in again.", "danger")
         return redirect(url_for('login'))
-
+    user = User.query.get(session['user_id'])
     attempt_id = session.get('postutme_attempt_id')
     if not attempt_id:
         flash("No active exam session found. Please restart from dashboard.", "danger")
@@ -902,7 +906,8 @@ def postutme_exam_page():
         questions=questions,
         subjects=selected_subjects,
         user=user,
-        reset_local_storage=True
+        reset_local_storage=True,
+        username=user.username
     )
 
 @app.route('/submit_postutme_exam', methods=['POST'])
@@ -972,7 +977,8 @@ def submit_postutme_exam():
             total=total_possible,
             percentage=percentage,
             subject_scores=json.dumps(scores),
-            selected_subjects=json.dumps(selected_subjects)
+            selected_subjects=json.dumps(selected_subjects),
+            school=user.school
         )
         db.session.add(result)
         db.session.commit()
@@ -1043,7 +1049,8 @@ def retake_postutme_exam():
         subjects=json.dumps(previous_subjects),
         questions_json=json.dumps(previous_qids),
         started_at=datetime.utcnow(),
-        time_remaining=POSTUTME_DURATION
+        time_remaining=POSTUTME_DURATION,
+        school=SCHOOL_NAME
     )
     db.session.add(new_attempt)
     db.session.commit()
@@ -1160,23 +1167,27 @@ def postutme_leaderboard():
     if not user:
         flash("Session expired. Please log in again.", "danger")
         return redirect(url_for('login'))
+    print("🔍 Logged-in user school:", user.school)
 
     raw_leaderboard = db.session.query(
         ExamResult,
         User.username
     ).join(User, ExamResult.user_id == User.id).filter(
-        ExamResult.exam_mode == 'POSTUTME'
+        ExamResult.exam_mode == 'POSTUTME',
+        ExamResult.school == user.school
     ).order_by(ExamResult.percentage.desc(), ExamResult.created_at.asc()).all()
 
     leaderboard = []
-    for idx, (result, username) in enumerate(raw_leaderboard, start=1):
+    result = None  # 🔥 Fix: define result upfront
+
+    for idx, (res, username) in enumerate(raw_leaderboard, start=1):
         attempt = ExamAttempt.query.filter_by(
-            user_id=result.user_id,
+            user_id=res.user_id,
             exam_mode='POSTUTME',
             status='submitted',
-            subjects=result.selected_subjects
+            subjects=res.selected_subjects
         ).filter(
-            ExamAttempt.submitted_at <= result.created_at
+            ExamAttempt.submitted_at <= res.created_at
         ).order_by(ExamAttempt.submitted_at.desc()).first()
 
         if not attempt or attempt.is_retake:
@@ -1189,17 +1200,16 @@ def postutme_leaderboard():
             duration_seconds = duration.total_seconds()
         else:
             exam_duration = "N/A"
-            exam_date = result.created_at.strftime('%Y-%m-%d %H:%M')
+            exam_date = res.created_at.strftime('%Y-%m-%d %H:%M')
             duration_seconds = float('inf')
-        # ✅ Use subject_scores to calculate correct score out of 10 per subject
-        subject_scores = json.loads(result.subject_scores or '{}')
-# ✅ Skip if less than 5 subjects attempted
+        subject_scores = json.loads(res.subject_scores or '{}')
         if len(subject_scores) < 4:
             continue
         raw_correct = sum(s['correct'] for s in subject_scores.values())
-        total_possible = len(subject_scores) * 10
-        percentage = round((raw_correct / total_possible) * 100, 2) if total_possible else 0        
+        total_possible = 100
+        percentage = round((raw_correct / total_possible) * 100, 2) if total_possible else 0
         leaderboard.append({
+            'school_name': user.school,
             'name': username,
             'score': f"{raw_correct}/{total_possible}",
             'percentage': percentage,
@@ -1207,8 +1217,10 @@ def postutme_leaderboard():
             'exam_duration': exam_duration,
             'date': exam_date
         })
-    # Sort by percentage DESC, then duration ASC
+        if not result:
+            result = res  # just grab the first one to avoid error in render_template
     sorted_leaderboard = sorted(leaderboard, key=lambda x: (-x['percentage'], x['duration_seconds']))
+
     # Assign ranks with tie-handling
     top_20 = []
     rank = 1
@@ -1223,7 +1235,7 @@ def postutme_leaderboard():
         if len(top_20) == 20:
             break
         prev_entry = entry
-    return render_template('postutme_leaderboard.html', leaderboard=top_20, result=result)
+    return render_template('postutme_leaderboard.html', leaderboard=top_20, result=result, school_name=user.school)
 
 @app.route('/postutme_past_results')
 def postutme_past_results():
