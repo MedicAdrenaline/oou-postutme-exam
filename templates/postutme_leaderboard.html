@@ -122,10 +122,6 @@ body {
         </tbody>
       </table>
     </div>
-     <div class="text-center mt-5">
-        {% if result %}
-    <a href="{{ url_for('postutme_result', result_id=result.id) }}" class="btn btn-info">📊 ← Back to Result Page</a>
-    {% endif %}
     <script>
   function toggleMode() {
   const isDark = document.body.classList.toggle("dark-mode");
