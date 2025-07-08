@@ -43,7 +43,7 @@ def send_email(to_email, subject, content):
     send_bulk_email([to_email], subject, content)
 
 def send_otp_email(to_email, otp):
-    content = f"Hi,\n\nYour OTP is: {otp}\n\nBest regards,\nMedic Adrenaline"
+    content = f"Hi,\n\nYour OTP is: {otp}\n\nBest regards,\nMedic Adrenaline, \nClick on the Report not spam so as to receive our emails(PINs and...) notifications as fast as possible in your inbox"
     send_email(to_email, "Verify your Exam Practice Account", content)
 
 def send_reset_password_email(to_email, token):
